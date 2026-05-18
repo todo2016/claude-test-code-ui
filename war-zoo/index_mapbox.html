@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>销售通 - 作战地图下钻 POC (Maplibre + Deck.gl 版本)</title>
+    <script src="https://unpkg.com/deck.gl@latest/dist.min.js"></script>
+    <script src="https://unpkg.com/maplibre-gl@2.4.0/dist/maplibre-gl.js"></script>
+    <link href="https://unpkg.com/maplibre-gl@2.4.0/dist/maplibre-gl.css" rel="stylesheet" />
+    <style>
+        :root {
+            --bg-color: #0b0f19;
+            --text-main: #e2f1ff;
+            --highlight-gold: #ffd700;
+        }
+        body { font-family: sans-serif; margin: 0; padding: 0; background: var(--bg-color); color: var(--text-main); }
+        #map { position: absolute; top: 0; left: 0; width: 100vw; height: 100vh; }
+        .breadcrumbs {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            z-index: 10;
+            font-size: 18px;
+            color: var(--highlight-gold);
+            text-shadow: 0 0 5px #000;
+            background: rgba(0,0,0,0.5);
+            padding: 10px;
+            border-radius: 5px;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="map"></div>
+    <div class="breadcrumbs" id="breadcrumbs">📍 Maplibre + Deck.gl 散点聚合层</div>
+
+    <script>
+        const map = new maplibregl.Map({
+            container: 'map',
+            // 采用免费开源的 Carto 暗色底图，不需要 access token
+            style: 'https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json',
+            center: [104.195, 35.861],
+            zoom: 3,
+            pitch: 45
+        });
+
+        const data = [
+            {position: [116.405, 39.904], name: '北京'},
+            {position: [119.306, 26.075], name: '福州'},
+            {position: [126.642, 45.756], name: '哈尔滨'}
+        ];
+
+        const deckOverlay = new deck.MapboxOverlay({
+            interleaved: false,
+            layers: [
+                new deck.ScatterplotLayer({
+                    id: 'scatter-plot',
+                    data,
+                    radiusScale: 20000,
+                    radiusMinPixels: 5,
+                    getPosition: d => d.position,
+                    getFillColor: [0, 255, 255],
+                    pickable: true,
+                    onClick: info => alert(`Clicked L4: ${info.object.name}`)
+                })
+            ]
+        });
+
+        map.addControl(deckOverlay);
+    </script>
+</body>
+</html>

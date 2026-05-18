@@ -1,0 +1,1572 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>销售作战地图 · 领导指挥视图</title>
+<style>
+  :root {
+    --primary: #2563EB;
+    --primary-ai: #2E62FF;
+    --on-primary: #FFFFFF;
+    --ink: #262626;
+    --ink-strong: #333333;
+    --body: #262626;
+    --body-mid: #525252;
+    --mute: #969696;
+    --mute-soft: #A3A3A3;
+    --hairline: #E5E6EB;
+    --canvas: #FBFDFF;
+    --surface: #FFFFFF;
+    --surface-soft: #F9FAFB;
+    --danger: #EC4848;
+    --success: #20B26C;
+    --warning: #F5A623;
+    --decor-purple: #F4F1FF;
+    --decor-blue: #EDF4FF;
+    --decor-cyan: #D7F3FF;
+    --decor-lavender: #E6DFFF;
+    --decor-sky: #E6F0FF;
+    --gradient-decor: linear-gradient(135deg, #F4F1FF 0%, #EDF4FF 35%, #D7F3FF 100%);
+    --font-main: "Source Han Sans CN", "PingFang SC", -apple-system, BlinkMacSystemFont, sans-serif;
+    --font-system: "PingFang SC", -apple-system, BlinkMacSystemFont, sans-serif;
+    --rounded-sm: 8px;
+    --rounded-md: 12px;
+    --rounded-lg: 22px;
+    --rounded-xl: 24px;
+    --rounded-full: 9999px;
+    --space-xs: 4px;
+    --space-sm: 8px;
+    --space-md: 12px;
+    --space-lg: 16px;
+    --space-xl: 24px;
+    --space-2xl: 32px;
+    --shadow-card: 0 6px 18px rgba(37, 99, 235, 0.06), 0 2px 8px rgba(38, 38, 38, 0.05);
+    --shadow-float: 0 10px 24px rgba(46, 98, 255, 0.10), 0 4px 12px rgba(38, 38, 38, 0.08);
+  }
+
+  * { box-sizing: border-box; }
+
+  html, body {
+    margin: 0;
+    min-height: 100%;
+    font-family: var(--font-main);
+    background:
+      radial-gradient(circle at top left, rgba(244, 241, 255, 0.92) 0, rgba(244, 241, 255, 0.5) 18%, rgba(251, 253, 255, 0) 42%),
+      radial-gradient(circle at top right, rgba(215, 243, 255, 0.76) 0, rgba(215, 243, 255, 0.18) 22%, rgba(251, 253, 255, 0) 45%),
+      linear-gradient(180deg, #fafdff 0%, #f7faff 100%);
+    color: var(--body);
+  }
+
+  body {
+    min-height: 100vh;
+    padding: 20px;
+  }
+
+  .dashboard {
+    min-height: calc(100vh - 40px);
+    display: grid;
+    grid-template-columns: 320px minmax(720px, 1fr) 360px;
+    grid-template-rows: auto auto 1fr auto;
+    gap: 16px;
+  }
+
+  .card {
+    background: rgba(255, 255, 255, 0.88);
+    border: 1px solid rgba(229, 230, 235, 0.9);
+    border-radius: var(--rounded-md);
+    box-shadow: var(--shadow-card);
+    backdrop-filter: blur(16px);
+  }
+
+  .topbar {
+    grid-column: 1 / -1;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px 20px;
+    position: sticky;
+    top: 0;
+    z-index: 10;
+  }
+
+  .brand {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+  }
+
+  .brand-mark {
+    width: 40px;
+    height: 40px;
+    border-radius: 14px;
+    background: linear-gradient(135deg, var(--primary) 0%, var(--primary-ai) 100%);
+    color: var(--on-primary);
+    display: grid;
+    place-items: center;
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    box-shadow: var(--shadow-float);
+  }
+
+  .brand-copy h1 {
+    margin: 0;
+    font-size: 22px;
+    line-height: 1.2;
+    color: var(--ink);
+  }
+
+  .brand-copy p {
+    margin: 4px 0 0;
+    font-size: 13px;
+    color: var(--body-mid);
+  }
+
+  .topbar-actions {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+
+  .pill,
+  .btn,
+  .mode-btn {
+    border-radius: var(--rounded-lg);
+    border: 1px solid rgba(46, 98, 255, 0.14);
+    background: rgba(255, 255, 255, 0.8);
+    color: var(--ink);
+    font: 400 14px/20px var(--font-main);
+    padding: 10px 14px;
+  }
+
+  .pill strong {
+    color: var(--primary);
+    font-weight: 700;
+  }
+
+  .btn {
+    cursor: pointer;
+    transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
+  }
+
+  .btn:hover,
+  .mode-btn:hover {
+    transform: translateY(-1px);
+    box-shadow: var(--shadow-card);
+    border-color: rgba(46, 98, 255, 0.28);
+  }
+
+  .btn-primary {
+    background: linear-gradient(135deg, var(--primary) 0%, var(--primary-ai) 100%);
+    color: var(--on-primary);
+    border-color: transparent;
+  }
+
+  .summary-strip {
+    grid-column: 1 / -1;
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 16px;
+  }
+
+  .summary-card {
+    padding: 18px 18px 16px;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .summary-card::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(135deg, rgba(244, 241, 255, 0.9), rgba(237, 244, 255, 0.3));
+    opacity: 0.8;
+    pointer-events: none;
+  }
+
+  .summary-card > * {
+    position: relative;
+  }
+
+  .summary-label {
+    font-size: 12px;
+    line-height: 18px;
+    color: var(--body-mid);
+  }
+
+  .summary-value {
+    margin-top: 6px;
+    font-size: 30px;
+    font-weight: 700;
+    line-height: 1;
+    color: var(--ink);
+  }
+
+  .summary-sub {
+    margin-top: 8px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
+    color: var(--body-mid);
+  }
+
+  .summary-trend {
+    color: var(--success);
+    font-weight: 600;
+  }
+
+  .summary-trend.warning {
+    color: var(--warning);
+  }
+
+  .summary-trend.danger {
+    color: var(--danger);
+  }
+
+  .panel {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  .left-panel {
+    grid-column: 1;
+    grid-row: 3;
+  }
+
+  .center-panel {
+    grid-column: 2;
+    grid-row: 3;
+    min-width: 0;
+  }
+
+  .right-panel {
+    grid-column: 3;
+    grid-row: 3;
+  }
+
+  .module {
+    padding: 18px;
+  }
+
+  .module-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 12px;
+    margin-bottom: 14px;
+  }
+
+  .module-title {
+    margin: 0;
+    font-size: 18px;
+    line-height: 26px;
+    font-weight: 700;
+    color: var(--ink);
+  }
+
+  .module-subtitle {
+    margin: 4px 0 0;
+    font-size: 13px;
+    line-height: 20px;
+    color: var(--body-mid);
+  }
+
+  .tag {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    border-radius: var(--rounded-full);
+    padding: 7px 12px;
+    background: rgba(37, 99, 235, 0.08);
+    color: var(--primary);
+    font-size: 12px;
+    line-height: 18px;
+    font-weight: 600;
+    white-space: nowrap;
+  }
+
+  .tag.warning {
+    color: #9A5B00;
+    background: rgba(245, 166, 35, 0.12);
+  }
+
+  .tag.danger {
+    color: #B93A3A;
+    background: rgba(236, 72, 72, 0.12);
+  }
+
+  .section-stack {
+    display: grid;
+    gap: 12px;
+  }
+
+  .focus-grid {
+    display: grid;
+    gap: 10px;
+  }
+
+  .focus-item {
+    padding: 14px;
+    border-radius: var(--rounded-md);
+    border: 1px solid rgba(46, 98, 255, 0.1);
+    background: linear-gradient(180deg, rgba(255,255,255,0.98), rgba(249,250,251,0.94));
+    cursor: pointer;
+    transition: transform 0.16s ease, border-color 0.16s ease, box-shadow 0.16s ease;
+  }
+
+  .focus-item:hover,
+  .focus-item.active {
+    transform: translateY(-1px);
+    border-color: rgba(46, 98, 255, 0.32);
+    box-shadow: var(--shadow-card);
+  }
+
+  .focus-top,
+  .team-top,
+  .alert-top,
+  .todo-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .focus-name,
+  .team-name,
+  .alert-title,
+  .todo-name {
+    font-size: 15px;
+    line-height: 22px;
+    font-weight: 700;
+    color: var(--ink);
+  }
+
+  .focus-meta,
+  .team-meta,
+  .alert-desc,
+  .tiny {
+    margin-top: 6px;
+    font-size: 12px;
+    line-height: 18px;
+    color: var(--body-mid);
+  }
+
+  .focus-bottom,
+  .team-bottom {
+    margin-top: 10px;
+    display: flex;
+    justify-content: space-between;
+    gap: 8px;
+    font-size: 12px;
+    line-height: 18px;
+    color: var(--body-mid);
+  }
+
+  .focus-stage {
+    color: var(--primary);
+    font-weight: 700;
+  }
+
+  .bar {
+    height: 6px;
+    border-radius: var(--rounded-full);
+    background: rgba(46, 98, 255, 0.08);
+    overflow: hidden;
+    margin-top: 10px;
+  }
+
+  .bar > span {
+    display: block;
+    height: 100%;
+    border-radius: inherit;
+    background: linear-gradient(90deg, var(--primary) 0%, #6a8fff 100%);
+  }
+
+  .mini-kpis {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+  }
+
+  .mini-kpi {
+    padding: 12px;
+    border-radius: var(--rounded-md);
+    background: var(--surface-soft);
+    border: 1px solid rgba(229, 230, 235, 0.85);
+  }
+
+  .mini-kpi .tiny {
+    margin: 0;
+  }
+
+  .mini-kpi strong {
+    display: block;
+    margin-top: 6px;
+    font-size: 22px;
+    line-height: 1;
+    color: var(--ink);
+  }
+
+  .hero-map {
+    padding: 18px;
+    display: grid;
+    gap: 16px;
+    min-height: 100%;
+  }
+
+  .hero-head {
+    display: flex;
+    justify-content: space-between;
+    gap: 16px;
+    align-items: flex-start;
+    flex-wrap: wrap;
+  }
+
+  .hero-title {
+    margin: 0;
+    font-size: 28px;
+    line-height: 36px;
+    color: var(--ink);
+  }
+
+  .hero-desc {
+    margin: 8px 0 0;
+    max-width: 68ch;
+    font-size: 14px;
+    line-height: 22px;
+    color: var(--body-mid);
+  }
+
+  .mode-switch {
+    display: inline-flex;
+    gap: 8px;
+    padding: 6px;
+    border-radius: var(--rounded-xl);
+    background: rgba(249, 250, 251, 0.92);
+    border: 1px solid rgba(229, 230, 235, 0.9);
+  }
+
+  .mode-btn {
+    padding: 8px 12px;
+    border: none;
+    background: transparent;
+    cursor: pointer;
+  }
+
+  .mode-btn.active {
+    background: linear-gradient(135deg, var(--primary) 0%, var(--primary-ai) 100%);
+    color: var(--on-primary);
+    box-shadow: var(--shadow-card);
+  }
+
+  .battle-stage {
+    position: relative;
+    min-height: 540px;
+    overflow: hidden;
+    border-radius: 28px;
+    border: 1px solid rgba(229, 230, 235, 0.95);
+    background:
+      radial-gradient(circle at 10% 20%, rgba(244, 241, 255, 1) 0, rgba(244, 241, 255, 0.5) 22%, rgba(244, 241, 255, 0) 46%),
+      radial-gradient(circle at 90% 12%, rgba(215, 243, 255, 0.9) 0, rgba(215, 243, 255, 0.2) 24%, rgba(215, 243, 255, 0) 50%),
+      linear-gradient(180deg, rgba(255,255,255,0.98), rgba(247,250,255,0.98));
+  }
+
+  .battle-stage::before {
+    content: "";
+    position: absolute;
+    inset: 14px;
+    border-radius: 22px;
+    border: 1px dashed rgba(46, 98, 255, 0.12);
+    pointer-events: none;
+  }
+
+  #battleCanvas {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+  }
+
+  .stage-chips {
+    position: absolute;
+    top: 16px;
+    left: 16px;
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+    z-index: 1;
+  }
+
+  .chip {
+    padding: 8px 12px;
+    border-radius: var(--rounded-full);
+    background: rgba(255,255,255,0.82);
+    border: 1px solid rgba(229,230,235,0.9);
+    color: var(--body-mid);
+    font-size: 12px;
+    line-height: 18px;
+    backdrop-filter: blur(12px);
+  }
+
+  .stage-panel {
+    position: absolute;
+    left: 16px;
+    bottom: 16px;
+    z-index: 1;
+    width: min(390px, calc(100% - 32px));
+    padding: 16px;
+    border-radius: 20px;
+    background: rgba(255,255,255,0.88);
+    border: 1px solid rgba(229,230,235,0.95);
+    box-shadow: var(--shadow-card);
+    backdrop-filter: blur(16px);
+  }
+
+  .stage-panel-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 12px;
+    margin-top: 12px;
+  }
+
+  .stage-panel strong {
+    display: block;
+    margin-top: 4px;
+    font-size: 20px;
+    line-height: 1;
+    color: var(--ink);
+  }
+
+  .legend {
+    position: absolute;
+    right: 16px;
+    bottom: 16px;
+    z-index: 1;
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    max-width: 48%;
+  }
+
+  .legend-item {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 10px;
+    border-radius: var(--rounded-full);
+    background: rgba(255,255,255,0.8);
+    border: 1px solid rgba(229,230,235,0.92);
+    font-size: 12px;
+    line-height: 18px;
+    color: var(--body-mid);
+    backdrop-filter: blur(10px);
+  }
+
+  .dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+  }
+
+  .pipeline-board {
+    display: grid;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    gap: 10px;
+  }
+
+  .pipeline-column {
+    border-radius: 18px;
+    border: 1px solid rgba(229,230,235,0.88);
+    background: rgba(249,250,251,0.92);
+    padding: 14px;
+  }
+
+  .pipeline-column h3 {
+    margin: 0;
+    font-size: 14px;
+    line-height: 20px;
+    color: var(--ink);
+  }
+
+  .pipeline-column p {
+    margin: 4px 0 0;
+    font-size: 12px;
+    line-height: 18px;
+    color: var(--body-mid);
+  }
+
+  .pipeline-column strong {
+    display: block;
+    margin-top: 14px;
+    font-size: 20px;
+    line-height: 1;
+    color: var(--primary);
+  }
+
+  .detail-card {
+    padding: 16px;
+    border-radius: 18px;
+    background: linear-gradient(180deg, rgba(255,255,255,0.98), rgba(249,250,251,0.96));
+    border: 1px solid rgba(229,230,235,0.86);
+  }
+
+  .detail-metrics {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+    margin-top: 14px;
+  }
+
+  .detail-metric {
+    padding: 12px;
+    border-radius: var(--rounded-md);
+    background: rgba(46, 98, 255, 0.06);
+  }
+
+  .detail-metric strong {
+    display: block;
+    margin-top: 6px;
+    font-size: 20px;
+    line-height: 1;
+    color: var(--ink);
+  }
+
+  .alert-list,
+  .todo-list,
+  .signal-list {
+    display: grid;
+    gap: 10px;
+  }
+
+  .alert-item,
+  .todo-item,
+  .signal-item {
+    padding: 14px;
+    border-radius: 16px;
+    border: 1px solid rgba(229,230,235,0.9);
+    background: rgba(255,255,255,0.9);
+  }
+
+  .alert-item.danger {
+    background: rgba(236, 72, 72, 0.06);
+    border-color: rgba(236, 72, 72, 0.18);
+  }
+
+  .alert-item.warning {
+    background: rgba(245, 166, 35, 0.08);
+    border-color: rgba(245, 166, 35, 0.18);
+  }
+
+  .alert-item.info {
+    background: rgba(46, 98, 255, 0.06);
+    border-color: rgba(46, 98, 255, 0.12);
+  }
+
+  .status-flag {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 74px;
+    padding: 4px 10px;
+    border-radius: var(--rounded-full);
+    font-size: 12px;
+    line-height: 18px;
+    font-weight: 700;
+  }
+
+  .status-flag.danger {
+    color: #B93A3A;
+    background: rgba(236, 72, 72, 0.14);
+  }
+
+  .status-flag.warning {
+    color: #9A5B00;
+    background: rgba(245, 166, 35, 0.16);
+  }
+
+  .status-flag.info {
+    color: var(--primary);
+    background: rgba(46, 98, 255, 0.12);
+  }
+
+  .score-grid {
+    display: grid;
+    gap: 12px;
+  }
+
+  .score-row {
+    display: grid;
+    gap: 6px;
+  }
+
+  .score-head {
+    display: flex;
+    justify-content: space-between;
+    gap: 10px;
+    font-size: 13px;
+    line-height: 20px;
+    color: var(--body-mid);
+  }
+
+  .score-head strong {
+    color: var(--ink);
+  }
+
+  .command-bar {
+    grid-column: 1 / -1;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 14px 18px;
+  }
+
+  .command-input {
+    flex: 1;
+    min-height: 52px;
+    display: flex;
+    align-items: center;
+    padding: 12px 18px;
+    border-radius: var(--rounded-xl);
+    border: 1px solid rgba(229,230,235,0.95);
+    background: rgba(249,250,251,0.92);
+    color: var(--mute-soft);
+    font-size: 16px;
+    line-height: 24px;
+  }
+
+  .command-actions {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .ghost-btn {
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    border: 1px solid rgba(229,230,235,0.95);
+    background: rgba(255,255,255,0.9);
+    display: grid;
+    place-items: center;
+    font-size: 18px;
+    color: var(--ink-strong);
+    box-shadow: var(--shadow-card);
+  }
+
+  .clock {
+    font-family: var(--font-system);
+    font-weight: 600;
+  }
+
+  @media (max-width: 1440px) {
+    .dashboard {
+      grid-template-columns: 300px minmax(0, 1fr) 320px;
+    }
+
+    .summary-strip {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+  }
+
+  @media (max-width: 1180px) {
+    body {
+      padding: 14px;
+    }
+
+    .dashboard {
+      grid-template-columns: 1fr;
+      grid-template-rows: auto auto auto auto auto auto;
+    }
+
+    .topbar,
+    .summary-strip,
+    .left-panel,
+    .center-panel,
+    .right-panel,
+    .command-bar {
+      grid-column: 1;
+    }
+
+    .left-panel,
+    .center-panel,
+    .right-panel {
+      grid-row: auto;
+    }
+
+    .summary-strip,
+    .pipeline-board,
+    .detail-metrics,
+    .mini-kpis {
+      grid-template-columns: 1fr;
+    }
+
+    .battle-stage {
+      min-height: 480px;
+    }
+
+    .legend {
+      position: static;
+      max-width: none;
+      justify-content: flex-start;
+      margin-top: 12px;
+    }
+
+    .stage-panel {
+      position: static;
+      width: auto;
+      margin: 16px;
+    }
+
+    .stage-chips {
+      position: static;
+      margin: 16px 16px 0;
+    }
+  }
+</style>
+</head>
+<body>
+<div class="dashboard">
+  <header class="topbar card">
+    <div class="brand">
+      <div class="brand-mark">SA</div>
+      <div class="brand-copy">
+        <h1>销售作战地图</h1>
+        <p>领导视角总览：看区域、看重点客户、看赢单风险、看资源调度。</p>
+      </div>
+    </div>
+    <div class="topbar-actions">
+      <div class="pill">战区：<strong>华东大区</strong></div>
+      <div class="pill">更新时间：<strong class="clock" id="clock">--:--:--</strong></div>
+      <button class="btn">季度目标进度</button>
+      <button class="btn btn-primary">下发总攻指令</button>
+    </div>
+  </header>
+
+  <section class="summary-strip">
+    <article class="summary-card card">
+      <div class="summary-label">本季目标达成</div>
+      <div class="summary-value">72%</div>
+      <div class="summary-sub"><span>目标 ¥1.8 亿 / 已锁定 ¥1.29 亿</span><span class="summary-trend">+9.6%</span></div>
+    </article>
+    <article class="summary-card card">
+      <div class="summary-label">重点客户赢面</div>
+      <div class="summary-value">63%</div>
+      <div class="summary-sub"><span>12 个 A 类项目进入决策期</span><span class="summary-trend warning">2 个需护盘</span></div>
+    </article>
+    <article class="summary-card card">
+      <div class="summary-label">资源覆盖效率</div>
+      <div class="summary-value">81%</div>
+      <div class="summary-sub"><span>售前、人脉、方案资源已覆盖 28 城</span><span class="summary-trend">覆盖提升</span></div>
+    </article>
+    <article class="summary-card card">
+      <div class="summary-label">风险暴露项目</div>
+      <div class="summary-value">4</div>
+      <div class="summary-sub"><span>其中 2 个因竞品强推进入红区</span><span class="summary-trend danger">需今天拍板</span></div>
+    </article>
+  </section>
+
+  <aside class="left-panel panel">
+    <section class="module card">
+      <div class="module-header">
+        <div>
+          <h2 class="module-title">本周主攻阵地</h2>
+          <p class="module-subtitle">建议领导每天先看这 5 个项目，再决定资源倾斜。</p>
+        </div>
+        <span class="tag">A 类机会池</span>
+      </div>
+      <div class="focus-grid" id="focusList">
+        <article class="focus-item active" data-target="jiangsu">
+          <div class="focus-top">
+            <div class="focus-name">江苏制造集团</div>
+            <span class="status-flag info">POC</span>
+          </div>
+          <div class="focus-meta">Owner：李想 · 华东制造线 · 决策链已打通 4/6</div>
+          <div class="focus-bottom"><span>预计 ARR ¥860 万</span><span class="focus-stage">赢面 74%</span></div>
+        </article>
+        <article class="focus-item" data-target="ningbo">
+          <div class="focus-top">
+            <div class="focus-name">宁波港航控股</div>
+            <span class="status-flag warning">招采</span>
+          </div>
+          <div class="focus-meta">Owner：陈可 · 竞品跟进强 · 需高层关系介入</div>
+          <div class="focus-bottom"><span>预计 ARR ¥1,120 万</span><span class="focus-stage">赢面 58%</span></div>
+        </article>
+        <article class="focus-item" data-target="hangzhou">
+          <div class="focus-top">
+            <div class="focus-name">杭州连锁零售</div>
+            <span class="status-flag info">方案</span>
+          </div>
+          <div class="focus-meta">Owner：周然 · AI 分析场景认可高 · 财务 ROI 待确认</div>
+          <div class="focus-bottom"><span>预计 ARR ¥620 万</span><span class="focus-stage">赢面 69%</span></div>
+        </article>
+        <article class="focus-item" data-target="suzhou">
+          <div class="focus-top">
+            <div class="focus-name">苏州精密科技</div>
+            <span class="status-flag danger">红区</span>
+          </div>
+          <div class="focus-meta">Owner：韩松 · 决策人临时换岗 · 本周必须回补信心</div>
+          <div class="focus-bottom"><span>预计 ARR ¥930 万</span><span class="focus-stage">赢面 41%</span></div>
+        </article>
+        <article class="focus-item" data-target="shanghai">
+          <div class="focus-top">
+            <div class="focus-name">上海生物医药平台</div>
+            <span class="status-flag info">立项</span>
+          </div>
+          <div class="focus-meta">Owner：王笛 · 新预算池释放 · 适合拉高客单</div>
+          <div class="focus-bottom"><span>预计 ARR ¥1,480 万</span><span class="focus-stage">赢面 52%</span></div>
+        </article>
+      </div>
+    </section>
+
+    <section class="module card">
+      <div class="module-header">
+        <div>
+          <h2 class="module-title">兵力编组</h2>
+          <p class="module-subtitle">把销售、售前、伙伴和高层资源当成联合作战力量来分配。</p>
+        </div>
+        <span class="tag">8 支一线小队</span>
+      </div>
+      <div class="section-stack">
+        <div class="detail-card">
+          <div class="team-top">
+            <div class="team-name">上海一组</div>
+            <span class="status-flag info">高配</span>
+          </div>
+          <div class="team-meta">3 AE + 1 SA + 1 生态伙伴，承压 A 类项目 3 个</div>
+          <div class="bar"><span style="width: 88%"></span></div>
+          <div class="team-bottom"><span>Quota 完成 88%</span><span>本周新增 ¥310 万</span></div>
+        </div>
+        <div class="detail-card">
+          <div class="team-top">
+            <div class="team-name">杭州行业组</div>
+            <span class="status-flag warning">待增援</span>
+          </div>
+          <div class="team-meta">2 AE + 1 售前，方案验证密度高，缺高层背书</div>
+          <div class="bar"><span style="width: 67%"></span></div>
+          <div class="team-bottom"><span>Quota 完成 67%</span><span>需 VP 陪访 2 次</span></div>
+        </div>
+        <div class="detail-card">
+          <div class="team-top">
+            <div class="team-name">苏南伙伴联队</div>
+            <span class="status-flag danger">缺口</span>
+          </div>
+          <div class="team-meta">伙伴推进快，但关键客户信任断层，需要总监临门一脚</div>
+          <div class="bar"><span style="width: 44%"></span></div>
+          <div class="team-bottom"><span>Quota 完成 44%</span><span>红区项目 1 个</span></div>
+        </div>
+      </div>
+    </section>
+  </aside>
+
+  <main class="center-panel panel">
+    <section class="hero-map card">
+      <div class="hero-head">
+        <div>
+          <h2 class="hero-title">华东大区攻防态势图</h2>
+          <p class="hero-desc">中间不是地理地图，而是销售战场地图：节点代表重点城市与客户，连线代表资源投入与决策推进，热区表示机会密度和风险暴露。领导看这里，能一眼知道哪里该加兵、哪里该护盘、哪里该抢收。</p>
+        </div>
+        <div class="mode-switch" id="modeSwitch">
+          <button class="mode-btn active" data-mode="revenue">收入视角</button>
+          <button class="mode-btn" data-mode="risk">风险视角</button>
+          <button class="mode-btn" data-mode="coverage">覆盖视角</button>
+        </div>
+      </div>
+
+      <div class="battle-stage" id="battleStage">
+        <canvas id="battleCanvas"></canvas>
+        <div class="stage-chips">
+          <div class="chip">季度主线：制造、港航、连锁零售三条主赛道</div>
+          <div class="chip">今日领导动作：2 场陪访、1 次资源拍板、1 次竞品阻击</div>
+        </div>
+        <div class="stage-panel">
+          <div class="tiny">当前选中目标</div>
+          <div class="module-title" id="selectedName">江苏制造集团</div>
+          <div class="module-subtitle" id="selectedNarrative">制造业样板单，若本周推进到 VP 评审，将明显拉升华东大区本季锁单确定性。</div>
+          <div class="stage-panel-grid">
+            <div>
+              <div class="tiny">预计 ARR</div>
+              <strong id="selectedArr">¥860 万</strong>
+            </div>
+            <div>
+              <div class="tiny">赢面</div>
+              <strong id="selectedWin">74%</strong>
+            </div>
+            <div>
+              <div class="tiny">下步动作</div>
+              <strong id="selectedNext">VP 评审</strong>
+            </div>
+          </div>
+        </div>
+        <div class="legend">
+          <div class="legend-item"><span class="dot" style="background:#2563EB"></span>区域枢纽</div>
+          <div class="legend-item"><span class="dot" style="background:#7E8CFF"></span>重点客户</div>
+          <div class="legend-item"><span class="dot" style="background:#EC4848"></span>风险项目</div>
+          <div class="legend-item"><span class="dot" style="background:#20B26C"></span>资源已覆盖</div>
+        </div>
+      </div>
+
+      <section class="pipeline-board">
+        <article class="pipeline-column">
+          <h3>线索激活</h3>
+          <p>新增高潜客户 23 家</p>
+          <strong>¥2,400 万</strong>
+        </article>
+        <article class="pipeline-column">
+          <h3>需求确认</h3>
+          <p>已进入场景访谈 14 家</p>
+          <strong>¥4,100 万</strong>
+        </article>
+        <article class="pipeline-column">
+          <h3>方案验证</h3>
+          <p>售前已绑定 9 家</p>
+          <strong>¥3,380 万</strong>
+        </article>
+        <article class="pipeline-column">
+          <h3>商务推进</h3>
+          <p>报价/招采并行 6 家</p>
+          <strong>¥2,950 万</strong>
+        </article>
+        <article class="pipeline-column">
+          <h3>签约冲刺</h3>
+          <p>本月预计关单 4 家</p>
+          <strong>¥1,820 万</strong>
+        </article>
+      </section>
+    </section>
+  </main>
+
+  <aside class="right-panel panel">
+    <section class="module card">
+      <div class="module-header">
+        <div>
+          <h2 class="module-title">领导摘要</h2>
+          <p class="module-subtitle">如果只看 30 秒，先看这一块。</p>
+        </div>
+        <span class="tag warning">需要拍板</span>
+      </div>
+      <div class="detail-card">
+        <div class="tiny">核心判断</div>
+        <div class="module-subtitle" style="margin-top:8px;color:var(--ink)">华东大区整体机会量足，但收入集中度偏高。江苏制造集团和宁波港航控股决定本月盘面，苏州精密科技若不回暖，预测锁单会回落 6 到 8 个点。</div>
+        <div class="detail-metrics">
+          <div class="detail-metric">
+            <div class="tiny">关键客户数</div>
+            <strong>12</strong>
+          </div>
+          <div class="detail-metric">
+            <div class="tiny">高风险项目</div>
+            <strong>4</strong>
+          </div>
+          <div class="detail-metric">
+            <div class="tiny">待领导介入</div>
+            <strong>3</strong>
+          </div>
+          <div class="detail-metric">
+            <div class="tiny">本周可抢收</div>
+            <strong>¥2,180 万</strong>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="module card">
+      <div class="module-header">
+        <div>
+          <h2 class="module-title">实时预警</h2>
+          <p class="module-subtitle">最容易丢盘的位置，必须先被看见。</p>
+        </div>
+      </div>
+      <div class="alert-list">
+        <article class="alert-item danger">
+          <div class="alert-top">
+            <div class="alert-title">苏州精密科技决策人换岗</div>
+            <span class="status-flag danger">红区</span>
+          </div>
+          <div class="alert-desc">原业务 sponsor 离任，竞品趁空档期切入。建议总监 24 小时内补位拜访。</div>
+          <div class="tiny">13:20 · 负责人 韩松</div>
+        </article>
+        <article class="alert-item warning">
+          <div class="alert-top">
+            <div class="alert-title">宁波港航控股临时压价</div>
+            <span class="status-flag warning">博弈</span>
+          </div>
+          <div class="alert-desc">采购希望用竞品报价压低整体包干价。需领导确认能否开放阶段性交付换价格空间。</div>
+          <div class="tiny">12:55 · 负责人 陈可</div>
+        </article>
+        <article class="alert-item info">
+          <div class="alert-top">
+            <div class="alert-title">江苏制造集团意向加码</div>
+            <span class="status-flag info">加速</span>
+          </div>
+          <div class="alert-desc">客户将 AI 分析范围从销售延伸到售后，存在扩容机会。适合安排领导出面锁定战略合作定位。</div>
+          <div class="tiny">11:42 · 负责人 李想</div>
+        </article>
+      </div>
+    </section>
+
+    <section class="module card">
+      <div class="module-header">
+        <div>
+          <h2 class="module-title">赢面评分</h2>
+          <p class="module-subtitle">不是看谁热闹，而是看谁最值得投入。</p>
+        </div>
+      </div>
+      <div class="score-grid">
+        <div class="score-row">
+          <div class="score-head"><span>江苏制造集团</span><strong>74</strong></div>
+          <div class="bar"><span style="width:74%"></span></div>
+        </div>
+        <div class="score-row">
+          <div class="score-head"><span>杭州连锁零售</span><strong>69</strong></div>
+          <div class="bar"><span style="width:69%"></span></div>
+        </div>
+        <div class="score-row">
+          <div class="score-head"><span>宁波港航控股</span><strong>58</strong></div>
+          <div class="bar"><span style="width:58%"></span></div>
+        </div>
+        <div class="score-row">
+          <div class="score-head"><span>上海生物医药平台</span><strong>52</strong></div>
+          <div class="bar"><span style="width:52%"></span></div>
+        </div>
+        <div class="score-row">
+          <div class="score-head"><span>苏州精密科技</span><strong>41</strong></div>
+          <div class="bar"><span style="width:41%; background: linear-gradient(90deg, #EC4848 0%, #ff8b8b 100%);"></span></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="module card">
+      <div class="module-header">
+        <div>
+          <h2 class="module-title">今日指挥动作</h2>
+          <p class="module-subtitle">销售团队要的不是口号，是明确动作。</p>
+        </div>
+      </div>
+      <div class="todo-list">
+        <article class="todo-item">
+          <div class="todo-top">
+            <div class="todo-name">14:30 陪访江苏制造集团</div>
+            <span class="tag">CEO 关系加热</span>
+          </div>
+          <div class="tiny">目标：把 POC 升级为 VP 评审，推动客户内部形成联签。</div>
+        </article>
+        <article class="todo-item">
+          <div class="todo-top">
+            <div class="todo-name">15:20 决定宁波项目价格策略</div>
+            <span class="tag warning">需要拍板</span>
+          </div>
+          <div class="tiny">目标：限定折扣上限，允许以交付分期换成交概率。</div>
+        </article>
+        <article class="todo-item">
+          <div class="todo-top">
+            <div class="todo-name">17:10 安排苏州项目信心修复</div>
+            <span class="tag danger">止损</span>
+          </div>
+          <div class="tiny">目标：补一场总监级沟通，重建新任决策人对项目价值的信任。</div>
+        </article>
+      </div>
+    </section>
+  </aside>
+
+  <footer class="command-bar card">
+    <div class="command-input">输入指挥动作，例如：请上海一组在 48 小时内把江苏制造集团推进到 VP 评审，并同步安排领导陪访。</div>
+    <div class="command-actions">
+      <button class="ghost-btn" type="button" aria-label="语音输入">◉</button>
+      <button class="btn btn-primary" type="button">生成行动方案</button>
+    </div>
+  </footer>
+</div>
+
+<script>
+  const canvas = document.getElementById('battleCanvas');
+  const stage = document.getElementById('battleStage');
+  const ctx = canvas.getContext('2d');
+  const focusList = document.getElementById('focusList');
+  const modeSwitch = document.getElementById('modeSwitch');
+  const clock = document.getElementById('clock');
+
+  let selectedId = 'jiangsu';
+  let currentMode = 'revenue';
+  let animationFrame = 0;
+
+  const hubs = [
+    { id: 'hub-sh', x: 180, y: 190, label: '上海枢纽', color: '#2563EB', radius: 18 },
+    { id: 'hub-hz', x: 250, y: 360, label: '杭州枢纽', color: '#2E62FF', radius: 16 },
+    { id: 'hub-nb', x: 470, y: 240, label: '宁波枢纽', color: '#2563EB', radius: 16 },
+    { id: 'hub-sz', x: 410, y: 430, label: '苏州枢纽', color: '#2E62FF', radius: 14 },
+    { id: 'hub-jn', x: 620, y: 160, label: '山东外延', color: '#2563EB', radius: 12 }
+  ];
+
+  const accounts = [
+    {
+      id: 'jiangsu',
+      hub: 'hub-sh',
+      x: 335,
+      y: 165,
+      label: '江苏制造集团',
+      arr: '¥860 万',
+      win: 74,
+      stage: 'POC',
+      next: 'VP 评审',
+      owner: '李想',
+      narrative: '制造业样板单，若本周推进到 VP 评审，将明显拉升华东大区本季锁单确定性。',
+      risk: '低',
+      color: '#7E8CFF',
+      ring: '#20B26C',
+      heat: 0.92,
+      coverage: 0.88
+    },
+    {
+      id: 'ningbo',
+      hub: 'hub-nb',
+      x: 570,
+      y: 220,
+      label: '宁波港航控股',
+      arr: '¥1,120 万',
+      win: 58,
+      stage: '招采',
+      next: '价格拍板',
+      owner: '陈可',
+      narrative: '招采节奏加快，但竞品正在打价格战。领导确认折扣边界后，销售才敢往前冲。',
+      risk: '中高',
+      color: '#7E8CFF',
+      ring: '#F5A623',
+      heat: 0.87,
+      coverage: 0.74
+    },
+    {
+      id: 'hangzhou',
+      hub: 'hub-hz',
+      x: 325,
+      y: 345,
+      label: '杭州连锁零售',
+      arr: '¥620 万',
+      win: 69,
+      stage: '方案',
+      next: 'ROI 共识',
+      owner: '周然',
+      narrative: '业务价值被认同，但财务视角还不够稳，需要补一轮 ROI 拆解。',
+      risk: '中',
+      color: '#7E8CFF',
+      ring: '#20B26C',
+      heat: 0.78,
+      coverage: 0.82
+    },
+    {
+      id: 'suzhou',
+      hub: 'hub-sz',
+      x: 485,
+      y: 425,
+      label: '苏州精密科技',
+      arr: '¥930 万',
+      win: 41,
+      stage: '红区',
+      next: '信心修复',
+      owner: '韩松',
+      narrative: '项目价值并没有消失，但人事变动让信任断层，需要领导补位稳定局势。',
+      risk: '高',
+      color: '#EC4848',
+      ring: '#EC4848',
+      heat: 0.67,
+      coverage: 0.56
+    },
+    {
+      id: 'shanghai',
+      hub: 'hub-sh',
+      x: 205,
+      y: 95,
+      label: '上海生物医药平台',
+      arr: '¥1,480 万',
+      win: 52,
+      stage: '立项',
+      next: '战略对齐',
+      owner: '王笛',
+      narrative: '这是一笔高客单潜力单，价值上限最高，但需要更强的战略叙事才能起势。',
+      risk: '中',
+      color: '#7E8CFF',
+      ring: '#2563EB',
+      heat: 0.83,
+      coverage: 0.62
+    }
+  ];
+
+  const territoryLabels = [
+    { x: 110, y: 70, text: '总部经营区' },
+    { x: 330, y: 80, text: '制造产业带' },
+    { x: 540, y: 115, text: '港航物流带' },
+    { x: 295, y: 470, text: '零售消费带' },
+    { x: 585, y: 470, text: '风险防守区' }
+  ];
+
+  function resizeCanvas() {
+    const rect = stage.getBoundingClientRect();
+    const ratio = window.devicePixelRatio || 1;
+    canvas.width = rect.width * ratio;
+    canvas.height = rect.height * ratio;
+    canvas.style.width = rect.width + 'px';
+    canvas.style.height = rect.height + 'px';
+    ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
+  }
+
+  function getNodeById(id) {
+    return accounts.find((item) => item.id === id);
+  }
+
+  function getHubById(id) {
+    return hubs.find((item) => item.id === id);
+  }
+
+  function modeStyle() {
+    if (currentMode === 'risk') {
+      return {
+        link: 'rgba(236, 72, 72, 0.38)',
+        fill: 'rgba(236, 72, 72, 0.08)',
+        glow: 'rgba(236, 72, 72, 0.16)'
+      };
+    }
+    if (currentMode === 'coverage') {
+      return {
+        link: 'rgba(32, 178, 108, 0.34)',
+        fill: 'rgba(32, 178, 108, 0.08)',
+        glow: 'rgba(32, 178, 108, 0.16)'
+      };
+    }
+    return {
+      link: 'rgba(37, 99, 235, 0.28)',
+      fill: 'rgba(46, 98, 255, 0.08)',
+      glow: 'rgba(46, 98, 255, 0.16)'
+    };
+  }
+
+  function updateSelectedPanel() {
+    const current = getNodeById(selectedId);
+    if (!current) return;
+    document.getElementById('selectedName').textContent = current.label;
+    document.getElementById('selectedNarrative').textContent = current.narrative;
+    document.getElementById('selectedArr').textContent = current.arr;
+    document.getElementById('selectedWin').textContent = current.win + '%';
+    document.getElementById('selectedNext').textContent = current.next;
+
+    document.querySelectorAll('.focus-item').forEach((item) => {
+      item.classList.toggle('active', item.dataset.target === selectedId);
+    });
+  }
+
+  function drawBackground(width, height) {
+    const style = modeStyle();
+    const grid = 52;
+
+    ctx.clearRect(0, 0, width, height);
+
+    for (let x = 0; x < width; x += grid) {
+      ctx.strokeStyle = 'rgba(46, 98, 255, 0.06)';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(x, 0);
+      ctx.lineTo(x, height);
+      ctx.stroke();
+    }
+
+    for (let y = 0; y < height; y += grid) {
+      ctx.beginPath();
+      ctx.moveTo(0, y);
+      ctx.lineTo(width, y);
+      ctx.stroke();
+    }
+
+    const glowA = ctx.createRadialGradient(180, 180, 20, 180, 180, 180);
+    glowA.addColorStop(0, style.glow);
+    glowA.addColorStop(1, 'rgba(255,255,255,0)');
+    ctx.fillStyle = glowA;
+    ctx.fillRect(0, 0, width, height);
+
+    const glowB = ctx.createRadialGradient(width - 180, height - 150, 30, width - 180, height - 150, 210);
+    glowB.addColorStop(0, 'rgba(126, 140, 255, 0.12)');
+    glowB.addColorStop(1, 'rgba(255,255,255,0)');
+    ctx.fillStyle = glowB;
+    ctx.fillRect(0, 0, width, height);
+
+    territoryLabels.forEach((label) => {
+      ctx.fillStyle = 'rgba(82, 82, 82, 0.42)';
+      ctx.font = '12px "PingFang SC", sans-serif';
+      ctx.fillText(label.text, label.x, label.y);
+    });
+  }
+
+  function drawLinks(time) {
+    const style = modeStyle();
+
+    accounts.forEach((account) => {
+      const hub = getHubById(account.hub);
+      if (!hub) return;
+
+      const gradient = ctx.createLinearGradient(hub.x, hub.y, account.x, account.y);
+      gradient.addColorStop(0, style.link);
+      gradient.addColorStop(1, account.color === '#EC4848' ? 'rgba(236,72,72,0.45)' : 'rgba(126,140,255,0.42)');
+
+      ctx.strokeStyle = gradient;
+      ctx.lineWidth = account.id === selectedId ? 4 : 2;
+      ctx.setLineDash(account.id === selectedId ? [] : [6, 8]);
+      ctx.beginPath();
+      ctx.moveTo(hub.x, hub.y);
+      ctx.bezierCurveTo((hub.x + account.x) / 2, hub.y - 40, (hub.x + account.x) / 2, account.y + 40, account.x, account.y);
+      ctx.stroke();
+      ctx.setLineDash([]);
+
+      const t = ((time / 1600) + account.heat) % 1;
+      const pointX = hub.x + (account.x - hub.x) * t;
+      const pointY = hub.y + (account.y - hub.y) * t;
+      ctx.fillStyle = account.id === selectedId ? '#2563EB' : 'rgba(46, 98, 255, 0.55)';
+      ctx.beginPath();
+      ctx.arc(pointX, pointY, account.id === selectedId ? 5 : 3.5, 0, Math.PI * 2);
+      ctx.fill();
+    });
+  }
+
+  function drawHubs() {
+    hubs.forEach((hub) => {
+      const ring = ctx.createRadialGradient(hub.x, hub.y, 0, hub.x, hub.y, hub.radius * 2.8);
+      ring.addColorStop(0, 'rgba(37,99,235,0.14)');
+      ring.addColorStop(1, 'rgba(37,99,235,0)');
+      ctx.fillStyle = ring;
+      ctx.beginPath();
+      ctx.arc(hub.x, hub.y, hub.radius * 2.8, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.fillStyle = hub.color;
+      ctx.beginPath();
+      ctx.arc(hub.x, hub.y, hub.radius, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.fillStyle = '#FFFFFF';
+      ctx.font = '600 12px "PingFang SC", sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(hub.label.slice(0, 2), hub.x, hub.y);
+      ctx.textBaseline = 'alphabetic';
+
+      ctx.fillStyle = '#262626';
+      ctx.font = '12px "PingFang SC", sans-serif';
+      ctx.fillText(hub.label, hub.x, hub.y + 30);
+    });
+  }
+
+  function drawAccounts(time) {
+    accounts.forEach((account) => {
+      const pulse = 1 + 0.08 * Math.sin(time / 600 + account.heat * 10);
+      const radius = 12 + account.heat * 10;
+
+      if (account.id === selectedId) {
+        ctx.strokeStyle = account.ring;
+        ctx.lineWidth = 2.4;
+        ctx.beginPath();
+        ctx.arc(account.x, account.y, radius * pulse + 12, 0, Math.PI * 2);
+        ctx.stroke();
+      }
+
+      if (account.risk === '高' || currentMode === 'risk') {
+        const glow = ctx.createRadialGradient(account.x, account.y, 0, account.x, account.y, radius * 2.4);
+        glow.addColorStop(0, account.id === selectedId ? 'rgba(236,72,72,0.18)' : 'rgba(236,72,72,0.10)');
+        glow.addColorStop(1, 'rgba(236,72,72,0)');
+        ctx.fillStyle = glow;
+        ctx.beginPath();
+        ctx.arc(account.x, account.y, radius * 2.4, 0, Math.PI * 2);
+        ctx.fill();
+      }
+
+      ctx.fillStyle = account.color;
+      ctx.beginPath();
+      ctx.arc(account.x, account.y, radius, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.fillStyle = '#FFFFFF';
+      ctx.font = '700 12px "PingFang SC", sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(account.win, account.x, account.y);
+      ctx.textBaseline = 'alphabetic';
+
+      ctx.fillStyle = '#262626';
+      ctx.font = account.id === selectedId ? '700 13px "PingFang SC", sans-serif' : '12px "PingFang SC", sans-serif';
+      ctx.fillText(account.label, account.x, account.y - radius - 12);
+
+      ctx.fillStyle = 'rgba(82,82,82,0.8)';
+      ctx.font = '11px "PingFang SC", sans-serif';
+      ctx.fillText(account.arr, account.x, account.y + radius + 18);
+    });
+  }
+
+  function render(time) {
+    const width = stage.clientWidth;
+    const height = stage.clientHeight;
+
+    drawBackground(width, height);
+    drawLinks(time);
+    drawHubs();
+    drawAccounts(time);
+
+    animationFrame = window.requestAnimationFrame(render);
+  }
+
+  function updateClock() {
+    const now = new Date();
+    clock.textContent = now.toLocaleTimeString('zh-CN', { hour12: false });
+  }
+
+  focusList.addEventListener('click', (event) => {
+    const item = event.target.closest('.focus-item');
+    if (!item) return;
+    selectedId = item.dataset.target;
+    updateSelectedPanel();
+  });
+
+  modeSwitch.addEventListener('click', (event) => {
+    const button = event.target.closest('.mode-btn');
+    if (!button) return;
+    currentMode = button.dataset.mode;
+    document.querySelectorAll('.mode-btn').forEach((item) => {
+      item.classList.toggle('active', item === button);
+    });
+  });
+
+  canvas.addEventListener('click', (event) => {
+    const rect = canvas.getBoundingClientRect();
+    const x = event.clientX - rect.left;
+    const y = event.clientY - rect.top;
+
+    let closest = null;
+    let minDistance = Infinity;
+
+    accounts.forEach((account) => {
+      const dx = account.x - x;
+      const dy = account.y - y;
+      const distance = Math.hypot(dx, dy);
+      if (distance < 26 && distance < minDistance) {
+        minDistance = distance;
+        closest = account;
+      }
+    });
+
+    if (closest) {
+      selectedId = closest.id;
+      updateSelectedPanel();
+    }
+  });
+
+  window.addEventListener('resize', () => {
+    resizeCanvas();
+  });
+
+  resizeCanvas();
+  updateSelectedPanel();
+  updateClock();
+  setInterval(updateClock, 1000);
+  render(0);
+</script>
+</body>
+</html>

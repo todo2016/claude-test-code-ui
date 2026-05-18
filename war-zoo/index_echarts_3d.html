@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>销售通 - 作战地图下钻 POC (ECharts 3D 版本)</title>
+    <script src="https://cdn.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/echarts-gl@2.0.9/dist/echarts-gl.min.js"></script>
+    <style>
+        :root {
+            --bg-color: #0b0f19;
+            --panel-bg: rgba(16, 25, 43, 0.75);
+            --border-color: rgba(0, 255, 255, 0.3);
+            --text-main: #e2f1ff;
+            --highlight-cyan: #00ffff;
+            --highlight-magenta: #ff00ff;
+            --highlight-gold: #ffd700;
+        }
+        
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            overflow: hidden;
+            background-image: 
+                radial-gradient(circle at 50% 50%, #1a2a47 0%, #0b0f19 80%);
+        }
+
+        .glass-panel {
+            background: var(--panel-bg);
+            backdrop-filter: blur(10px);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            box-shadow: 0 0 15px rgba(0, 255, 255, 0.1);
+            padding: 15px;
+            position: absolute;
+            z-index: 10;
+        }
+
+        .header {
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            gap: 20px;
+            align-items: center;
+            padding: 10px 30px;
+        }
+
+        #map-container {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            z-index: 1;
+        }
+
+        .breadcrumbs {
+            position: absolute;
+            top: 80px;
+            left: 20px;
+            z-index: 10;
+            font-size: 18px;
+            color: var(--highlight-gold);
+            text-shadow: 0 0 5px var(--highlight-gold);
+            pointer-events: none;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="map-container"></div>
+    <div class="breadcrumbs" id="breadcrumbs">📍 3D 全国大区层 (L1)</div>
+
+    <script>
+        const chartDom = document.getElementById('map-container');
+        const myChart = echarts.init(chartDom);
+
+        fetch('https://geo.datav.aliyun.com/areas_v3/bound/100000_full.json')
+            .then(res => res.json())
+            .then(geoJson => {
+                echarts.registerMap('china', geoJson);
+                const option = {
+                    tooltip: { trigger: 'item' },
+                    geo3D: {
+                        map: 'china',
+                        roam: true,
+                        itemStyle: {
+                            color: '#0b162c',
+                            opacity: 0.8,
+                            borderWidth: 1,
+                            borderColor: '#00ffff'
+                        },
+                        label: {
+                            show: true,
+                            textStyle: {
+                                color: '#fff',
+                                backgroundColor: 'rgba(0,0,0,0)'
+                            }
+                        },
+                        emphasis: {
+                            itemStyle: { color: 'rgba(0, 255, 255, 0.5)' }
+                        },
+                        light: {
+                            main: { intensity: 1, shadow: true },
+                            ambient: { intensity: 0.3 }
+                        },
+                        viewControl: {
+                            distance: 100,
+                            alpha: 40,
+                            beta: -10
+                        }
+                    },
+                    series: [
+                        {
+                            type: 'scatter3D',
+                            coordinateSystem: 'geo3D',
+                            symbol: 'pin',
+                            symbolSize: 20,
+                            itemStyle: { color: '#ff00ff' },
+                            data: [
+                                { name: "北京门店", value: [116.405, 39.904, 10] },
+                                { name: "福州门店", value: [119.306, 26.075, 10] }
+                            ]
+                        }
+                    ]
+                };
+                myChart.setOption(option);
+            });
+            
+        window.addEventListener('resize', () => myChart.resize());
+    </script>
+</body>
+</html>

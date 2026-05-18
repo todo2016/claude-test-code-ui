@@ -1,0 +1,561 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>销售智能体 · 工作台</title>
+<style>
+  /* ─── DESIGN.md Tokens ─── */
+  :root {
+    --primary: #080808;
+    --on-primary: #ffffff;
+    --ink: #080808;
+    --ink-strong: #222222;
+    --body: #363636;
+    --body-mid: #5a5a5a;
+    --mute: #898989;
+    --mute-soft: #ababab;
+    --hairline: #d8d8d8;
+    --canvas: #ffffff;
+
+    --accent-purple: #7a3dff;
+    --accent-pink: #ed52cb;
+    --accent-blue: #3b89ff;
+    --accent-blue-deep: #006acc;
+    --accent-blue-info: #146ef5;
+    --accent-orange: #ff6b00;
+    --accent-green: #00d722;
+    --accent-yellow: #ffae13;
+    --accent-red: #ee1d36;
+
+    --font: "Inter", system-ui, -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif;
+    --font-mono: "Inconsolata", ui-monospace, SFMono-Regular, Menlo, monospace;
+
+    --spacing-xxs: 2px;  --spacing-xs: 4px;  --spacing-sm: 8px;
+    --spacing-md: 12px;  --spacing-lg: 16px;  --spacing-xl: 20px;
+    --spacing-2xl: 24px; --spacing-3xl: 32px;
+
+    --rounded-none: 0; --rounded-xs: 2px; --rounded-sm: 4px;
+    --rounded-md: 8px; --rounded-full: 9999px;
+
+    --shadow-card: 0 84px 24px rgba(0,0,0,0), 0 54px 22px rgba(0,0,0,0.01), 0 30px 18px rgba(0,0,0,0.04), 0 13px 13px rgba(0,0,0,0.08), 0 3px 7px rgba(0,0,0,0.09);
+    --shadow-card-hover: 0 84px 24px rgba(0,0,0,0), 0 54px 22px rgba(0,0,0,0.01), 0 30px 18px rgba(0,0,0,0.06), 0 13px 13px rgba(0,0,0,0.12), 0 3px 7px rgba(0,0,0,0.14);
+  }
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: var(--font);
+    background: #f4f5f6;
+    color: var(--body);
+    font-size: 14px;
+    font-weight: 400;
+    line-height: 1.6;
+    letter-spacing: 0;
+    min-height: 100vh;
+  }
+
+  /* ─── Layout Shell ─── */
+  .app-shell {
+    display: flex;
+    min-height: 100vh;
+  }
+
+  /* ─── Left Sidebar ─── */
+  .sidebar {
+    width: 64px;
+    background: var(--canvas);
+    border-right: 1px solid var(--hairline);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: var(--spacing-lg) 0;
+    flex-shrink: 0;
+  }
+  .sidebar-logo {
+    width: 36px; height: 36px;
+    background: var(--primary);
+    border-radius: var(--rounded-sm);
+    display: flex; align-items: center; justify-content: center;
+    color: var(--on-primary);
+    font-size: 13px; font-weight: 600;
+    font-family: var(--font-mono);
+    margin-bottom: var(--spacing-3xl);
+  }
+  .sidebar-nav {
+    display: flex; flex-direction: column; align-items: center; gap: var(--spacing-xs);
+  }
+  .sidebar-item {
+    width: 48px; height: 48px;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    gap: 2px;
+    border-radius: var(--rounded-sm);
+    cursor: pointer;
+    color: var(--mute);
+    font-size: 10px;
+    font-weight: 500;
+    letter-spacing: 0;
+    transition: all 0.15s;
+    border: none; background: transparent;
+  }
+  .sidebar-item:hover { color: var(--ink); background: rgba(0,0,0,0.04); }
+  .sidebar-item.active {
+    color: var(--accent-blue-info);
+    background: rgba(20,110,245,0.06);
+  }
+  .sidebar-icon { font-size: 20px; line-height: 1; }
+
+  /* ─── Main Content ─── */
+  .main-content {
+    flex: 1;
+    display: flex; flex-direction: column;
+    min-width: 0;
+  }
+
+  /* ─── Header ─── */
+  .page-header {
+    background: var(--canvas);
+    padding: var(--spacing-xl) var(--spacing-3xl);
+    border-bottom: 1px solid var(--hairline);
+    display: flex; align-items: center; gap: var(--spacing-lg);
+  }
+  .avatar {
+    width: 52px; height: 52px;
+    background: linear-gradient(135deg, var(--accent-blue) 0%, var(--accent-purple) 100%);
+    border-radius: var(--rounded-full);
+    display: flex; align-items: center; justify-content: center;
+    color: #fff; font-size: 22px;
+    flex-shrink: 0;
+  }
+  .greeting { flex: 1; }
+  .greeting-title {
+    font-family: var(--font);
+    font-size: 24px; font-weight: 500;
+    color: var(--ink);
+    line-height: 1.3;
+    letter-spacing: 0;
+  }
+  .greeting-sub {
+    font-family: var(--font);
+    font-size: 14px; font-weight: 400;
+    color: var(--body-mid);
+    margin-top: var(--spacing-xxs);
+    letter-spacing: 0;
+  }
+  .header-time {
+    font-size: 13px; color: var(--mute);
+    font-weight: 400;
+  }
+
+  /* ─── Content Area ─── */
+  .content-area {
+    flex: 1;
+    padding: var(--spacing-3xl);
+    overflow-y: auto;
+    display: flex; flex-direction: column; gap: var(--spacing-xl);
+  }
+
+  /* ─── Stats Row ─── */
+  .stats-row {
+    display: grid; grid-template-columns: repeat(4, 1fr); gap: var(--spacing-lg);
+  }
+  .stats-row-2 {
+    display: grid; grid-template-columns: repeat(2, 1fr); gap: var(--spacing-lg);
+  }
+
+  /* ─── Stat Card ─── */
+  .stat-card {
+    background: var(--canvas);
+    border: 1px solid var(--hairline);
+    border-radius: var(--rounded-md);
+    padding: var(--spacing-2xl);
+    cursor: pointer;
+    transition: box-shadow 0.2s, border-color 0.2s;
+  }
+  .stat-card:hover {
+    border-color: var(--mute-soft);
+    box-shadow: var(--shadow-card-hover);
+  }
+  .stat-card-icon {
+    width: 40px; height: 40px;
+    border-radius: var(--rounded-sm);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 20px;
+    margin-bottom: var(--spacing-md);
+  }
+  .stat-card-icon.blue { background: rgba(59,137,255,0.1); color: var(--accent-blue); }
+  .stat-card-icon.purple { background: rgba(122,61,255,0.1); color: var(--accent-purple); }
+  .stat-card-icon.orange { background: rgba(255,107,0,0.1); color: var(--accent-orange); }
+  .stat-card-icon.green { background: rgba(0,215,34,0.1); color: var(--accent-green); }
+  .stat-card-icon.pink { background: rgba(237,82,203,0.1); color: var(--accent-pink); }
+  .stat-card-icon.red { background: rgba(238,29,54,0.08); color: var(--accent-red); }
+
+  .stat-card-label {
+    font-family: var(--font);
+    font-size: 14px; font-weight: 400;
+    color: var(--body-mid);
+    line-height: 1.4;
+    letter-spacing: 0;
+  }
+  .stat-card-value {
+    font-family: var(--font);
+    font-size: 56px; font-weight: 600;
+    color: var(--ink);
+    line-height: 1.04;
+    letter-spacing: 0;
+    margin-top: var(--spacing-xs);
+  }
+  .stat-card-unit {
+    font-family: var(--font);
+    font-size: 16px; font-weight: 400;
+    color: var(--mute);
+    margin-left: var(--spacing-xs);
+  }
+  .stat-card-footer {
+    font-family: var(--font);
+    font-size: 12.8px;
+    font-weight: 400;
+    color: var(--mute-soft);
+    margin-top: var(--spacing-sm);
+  }
+
+  /* ─── Action Cards Row ─── */
+  .action-cards-row {
+    display: grid; grid-template-columns: 2fr 1fr; gap: var(--spacing-lg);
+  }
+
+  .action-card {
+    background: var(--canvas);
+    border: 1px solid var(--hairline);
+    border-radius: var(--rounded-md);
+    padding: var(--spacing-2xl);
+    cursor: pointer;
+    transition: box-shadow 0.2s, border-color 0.2s;
+    position: relative;
+    overflow: hidden;
+  }
+  .action-card:hover {
+    border-color: var(--mute-soft);
+    box-shadow: var(--shadow-card-hover);
+  }
+  .action-card-header {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: var(--spacing-md);
+  }
+  .action-card-title {
+    font-family: var(--font);
+    font-size: 16px; font-weight: 500;
+    color: var(--ink);
+    letter-spacing: -0.16px;
+    line-height: 1.6;
+  }
+  .action-card-badge {
+    font-family: var(--font);
+    font-size: 12px; font-weight: 500;
+    color: var(--accent-blue-info);
+    background: rgba(20,110,245,0.06);
+    padding: var(--spacing-xxs) var(--spacing-sm);
+    border-radius: var(--rounded-sm);
+  }
+  .action-card-desc {
+    font-family: var(--font);
+    font-size: 14px; font-weight: 400;
+    color: var(--body-mid);
+    line-height: 1.6;
+    letter-spacing: 0;
+  }
+  .action-card-list {
+    margin-top: var(--spacing-md);
+    display: flex; flex-direction: column; gap: var(--spacing-sm);
+  }
+  .action-card-item {
+    display: flex; align-items: center; gap: var(--spacing-sm);
+    font-size: 14px; font-weight: 400;
+    color: var(--body);
+    padding: var(--spacing-sm) 0;
+    border-bottom: 1px solid var(--hairline);
+  }
+  .action-card-item:last-child { border-bottom: none; }
+  .item-dot {
+    width: 6px; height: 6px; border-radius: var(--rounded-full);
+    flex-shrink: 0;
+  }
+  .item-dot.blue { background: var(--accent-blue-info); }
+  .item-dot.orange { background: var(--accent-orange); }
+  .item-dot.green { background: var(--accent-green); }
+  .item-dot.purple { background: var(--accent-purple); }
+  .item-tag {
+    font-size: 12px; font-weight: 500;
+    padding: 1px 6px; border-radius: var(--rounded-xs);
+    flex-shrink: 0;
+  }
+  .item-tag.new { background: rgba(20,110,245,0.08); color: var(--accent-blue-info); }
+  .item-tag.urgent { background: rgba(238,29,54,0.06); color: var(--accent-red); }
+
+  /* ─── Refresh Card ─── */
+  .refresh-card {
+    background: var(--canvas);
+    border: 1px solid var(--hairline);
+    border-radius: var(--rounded-md);
+    padding: var(--spacing-2xl);
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    gap: var(--spacing-lg);
+    cursor: pointer;
+    transition: box-shadow 0.2s, border-color 0.2s;
+  }
+  .refresh-card:hover {
+    border-color: var(--mute-soft);
+    box-shadow: var(--shadow-card-hover);
+  }
+  .refresh-icon {
+    width: 52px; height: 52px;
+    border-radius: var(--rounded-full);
+    background: rgba(0,0,0,0.03);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 24px; color: var(--mute);
+  }
+  .refresh-text {
+    font-family: var(--font);
+    font-size: 16px; font-weight: 500;
+    color: var(--body-mid);
+    letter-spacing: -0.16px;
+  }
+
+  /* ─── Quick Actions ─── */
+  .quick-actions {
+    display: flex; gap: var(--spacing-md);
+    flex-wrap: wrap;
+  }
+  .btn-action {
+    display: flex; align-items: center; gap: var(--spacing-sm);
+    padding: var(--spacing-md) var(--spacing-xl);
+    border-radius: var(--rounded-sm);
+    font-family: var(--font);
+    font-size: 16px; font-weight: 500;
+    letter-spacing: -0.16px;
+    cursor: pointer;
+    border: none;
+    transition: all 0.15s;
+  }
+  .btn-action.primary {
+    background: var(--primary);
+    color: var(--on-primary);
+  }
+  .btn-action.primary:hover { background: var(--ink-strong); }
+  .btn-action.secondary {
+    background: var(--canvas);
+    color: var(--ink);
+    border: 1px solid var(--hairline);
+  }
+  .btn-action.secondary:hover { border-color: var(--mute); }
+
+  /* ─── Input Bar ─── */
+  .input-bar-wrap {
+    margin-top: auto;
+    padding: var(--spacing-lg) var(--spacing-3xl);
+    background: var(--canvas);
+    border-top: 1px solid var(--hairline);
+  }
+  .input-bar {
+    display: flex; align-items: center; gap: var(--spacing-md);
+    background: var(--canvas);
+    border: 1px solid var(--hairline);
+    border-radius: var(--rounded-md);
+    padding: var(--spacing-md) var(--spacing-lg);
+  }
+  .input-bar input {
+    flex: 1;
+    border: none; outline: none;
+    font-family: var(--font);
+    font-size: 16px; font-weight: 400;
+    color: var(--ink);
+    letter-spacing: -0.16px;
+    background: transparent;
+  }
+  .input-bar input::placeholder { color: var(--mute-soft); }
+  .input-bar .btn-send {
+    width: 36px; height: 36px;
+    border-radius: var(--rounded-sm);
+    background: var(--primary);
+    color: var(--on-primary);
+    border: none;
+    cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 16px;
+    flex-shrink: 0;
+  }
+  .input-bar .btn-send:hover { background: var(--ink-strong); }
+  .input-hint {
+    display: flex; align-items: center; gap: var(--spacing-xs);
+    margin-top: var(--spacing-sm);
+    font-size: 12px; color: var(--mute);
+  }
+  .input-hint-dot { width: 6px; height: 6px; border-radius: var(--rounded-full); background: var(--accent-green); }
+</style>
+</head>
+<body>
+
+<div class="app-shell">
+  <!-- ─── Left Sidebar ─── -->
+  <nav class="sidebar">
+    <div class="sidebar-logo">SI</div>
+    <div class="sidebar-nav">
+      <button class="sidebar-item active">
+        <span class="sidebar-icon">&#9881;</span>
+        <span>智能体</span>
+      </button>
+      <button class="sidebar-item">
+        <span class="sidebar-icon">&#9776;</span>
+        <span>内容中心</span>
+      </button>
+      <button class="sidebar-item">
+        <span class="sidebar-icon">&#9635;</span>
+        <span>应用中心</span>
+      </button>
+    </div>
+  </nav>
+
+  <!-- ─── Main Content ─── -->
+  <div class="main-content">
+    <!-- Header -->
+    <header class="page-header">
+      <div class="avatar">&#9786;</div>
+      <div class="greeting">
+        <div class="greeting-title">Hi~ 早上好！</div>
+        <div class="greeting-sub">我是销售智能体，7×24小时为你服务</div>
+      </div>
+    </header>
+
+    <!-- Content -->
+    <div class="content-area">
+      <!-- Stats Row 1 -->
+      <div class="stats-row">
+        <div class="stat-card">
+          <div class="stat-card-icon blue">&#128100;</div>
+          <div class="stat-card-label">待拜访客户</div>
+          <div>
+            <span class="stat-card-value">80</span>
+            <span class="stat-card-unit">家</span>
+          </div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-card-icon orange">&#128196;</div>
+          <div class="stat-card-label">待处理标讯</div>
+          <div>
+            <span class="stat-card-value">24</span>
+            <span class="stat-card-unit">条</span>
+          </div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-card-icon purple">&#127919;</div>
+          <div class="stat-card-label">未开发客户</div>
+          <div>
+            <span class="stat-card-value">80</span>
+            <span class="stat-card-unit">家</span>
+          </div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-card-icon green">&#128172;</div>
+          <div class="stat-card-label">已沟通客户</div>
+          <div>
+            <span class="stat-card-value">16</span>
+            <span class="stat-card-unit">家</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Stats Row 2 -->
+      <div class="stats-row-2">
+        <div class="stat-card">
+          <div class="stat-card-icon pink">&#128229;</div>
+          <div class="stat-card-label">新分配的标讯</div>
+          <div>
+            <span class="stat-card-value">24</span>
+            <span class="stat-card-unit">条</span>
+          </div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-card-icon red">&#9200;</div>
+          <div class="stat-card-label">即将过期标讯</div>
+          <div>
+            <span class="stat-card-value">17</span>
+            <span class="stat-card-unit">条</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Action Cards Row -->
+      <div class="action-cards-row">
+        <div class="action-card">
+          <div class="action-card-header">
+            <span class="action-card-title">推送最新的10条标讯线索信息</span>
+            <span class="action-card-badge">实时同步</span>
+          </div>
+          <div class="action-card-list">
+            <div class="action-card-item">
+              <span class="item-dot blue"></span>
+              <span>北京大学口腔医院 — 医疗设备采购项目 预算¥580万</span>
+              <span class="item-tag new">NEW</span>
+            </div>
+            <div class="action-card-item">
+              <span class="item-dot blue"></span>
+              <span>解放军总医院第三医学中心 — 手术器械招标</span>
+              <span class="item-tag new">NEW</span>
+            </div>
+            <div class="action-card-item">
+              <span class="item-dot orange"></span>
+              <span>上海市第一人民医院 — 影像设备维保服务</span>
+              <span class="item-tag urgent">急</span>
+            </div>
+            <div class="action-card-item">
+              <span class="item-dot blue"></span>
+              <span>广东省中医院 — 中药饮片集中采购</span>
+            </div>
+            <div class="action-card-item">
+              <span class="item-dot blue"></span>
+              <span>华西医院 — 检验科试剂招标 预算¥320万</span>
+            </div>
+          </div>
+        </div>
+
+        <div style="display:flex;flex-direction:column;gap:var(--spacing-lg)">
+          <div class="action-card" style="flex:1">
+            <div class="action-card-header">
+              <span class="action-card-title">分析北大口腔医院Q2的采购需求</span>
+            </div>
+            <div class="action-card-desc">
+              基于历史采购数据与Q1中标记录，智能识别北大口腔医院Q2潜在采购需求，辅助制定拜访策略。
+            </div>
+          </div>
+          <div class="refresh-card" style="flex:1">
+            <div class="refresh-icon">&#8635;</div>
+            <div class="refresh-text">换一批</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Quick Actions -->
+      <div class="quick-actions">
+        <button class="btn-action primary">&#9997; 创建一条拜访任务！</button>
+        <button class="btn-action secondary">&#128100; 客户拜访</button>
+        <button class="btn-action secondary">&#128240; 智能标讯</button>
+        <button class="btn-action secondary">&#128269; 立项查询</button>
+      </div>
+    </div>
+
+    <!-- Input Bar -->
+    <div class="input-bar-wrap">
+      <div class="input-bar">
+        <input type="text" placeholder="发消息或点击说话…" />
+        <button class="btn-send">&#9654;</button>
+      </div>
+      <div class="input-hint">
+        <span class="input-hint-dot"></span>
+        <span>销售智能体在线 · 可随时提问标讯、客户、拜访相关事宜</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>

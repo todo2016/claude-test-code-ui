@@ -1,0 +1,511 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>销售通 - 移动端作战地图</title>
+    <script src="https://cdn.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js"></script>
+    <style>
+        :root {
+            --primary: #2563EB;
+            --primary-ai: #2E62FF;
+            --on-primary: #FFFFFF;
+            --ink: #262626;
+            --ink-strong: #333333;
+            --body-mid: #525252;
+            --mute-soft: #A3A3A3;
+            --hairline: #E5E6EB;
+            --canvas: #FBFDFF;
+            --surface: #FFFFFF;
+            --surface-soft: #F9FAFB;
+            --danger: #EC4848;
+            --gradient-decor: linear-gradient(135deg, #F4F1FF 0%, #EDF4FF 35%, #D7F3FF 100%);
+            --shadow-card: 0 4px 12px rgba(37,99,235,0.06), 0 2px 8px rgba(38,38,38,0.04);
+            --shadow-sheet: 0 -4px 16px rgba(0,0,0,0.08);
+        }
+        
+        * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+        
+        body {
+            font-family: 'Source Han Sans CN', 'PingFang SC', -apple-system, sans-serif;
+            background: var(--canvas);
+            color: var(--ink);
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            height: 100dvh; /* Mobile browser bottom bar height fix */
+            overflow: hidden;
+        }
+
+        /* 顶部地图区域 */
+        .map-section {
+            position: relative;
+            height: 55%;
+            flex-shrink: 0;
+            background: var(--gradient-decor);
+        }
+
+        #map-container {
+            width: 100%;
+            height: 100%;
+        }
+
+        .header-controls {
+            position: absolute;
+            top: 12px;
+            left: 12px;
+            right: 12px;
+            z-index: 20;
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+
+        .header-controls select, .header-controls button {
+            background: rgba(255, 255, 255, 0.9);
+            backdrop-filter: blur(8px);
+            color: var(--ink);
+            border: 1px solid var(--hairline);
+            padding: 6px 12px;
+            border-radius: 16px;
+            font-size: 13px;
+            outline: none;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        }
+
+        .header-controls button {
+            background: var(--primary);
+            color: var(--on-primary);
+            border: none;
+            font-weight: bold;
+        }
+
+        .breadcrumbs {
+            position: absolute;
+            top: 54px;
+            left: 16px;
+            z-index: 10;
+            font-size: 14px;
+            font-weight: 700;
+            color: var(--primary);
+            text-shadow: 0px 0px 4px rgba(255,255,255,0.8);
+            pointer-events: none;
+        }
+
+        /* 底部数据卡片区域 (可滚动) */
+        .data-section {
+            flex: 1;
+            overflow-y: auto;
+            background: var(--surface-soft);
+            border-radius: 20px 20px 0 0;
+            margin-top: -20px;
+            z-index: 10;
+            box-shadow: var(--shadow-sheet);
+            padding: 20px 16px;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        .data-card {
+            background: var(--surface);
+            border-radius: 12px;
+            box-shadow: var(--shadow-card);
+            padding: 16px;
+        }
+
+        h3 {
+            color: var(--ink-strong);
+            margin-bottom: 12px;
+            font-size: 15px;
+            font-weight: 700;
+            border-bottom: 1px solid var(--hairline);
+            padding-bottom: 8px;
+        }
+
+        /* 表格样式移动端适配 */
+        .table-responsive {
+            width: 100%;
+            overflow-x: auto;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 12px;
+            min-width: 320px;
+        }
+        th, td {
+            padding: 10px 4px;
+            text-align: left;
+            border-bottom: 1px solid var(--hairline);
+            color: var(--ink);
+            white-space: nowrap;
+        }
+        th { color: var(--body-mid); font-weight: 500; }
+        tr:active { background: var(--surface-soft); }
+        .text-primary { color: var(--primary); font-weight: 700; }
+        
+        .tag {
+            display: inline-block;
+            padding: 2px 6px;
+            border-radius: 8px;
+            font-size: 10px;
+            background: var(--primary-ai);
+            color: var(--on-primary);
+            margin-right: 4px;
+        }
+
+        /* 客户360底栏 Modal (Bottom Sheet) */
+        .bottom-sheet {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: var(--surface);
+            border-radius: 20px 20px 0 0;
+            box-shadow: var(--shadow-sheet);
+            padding: 20px;
+            transform: translateY(100%);
+            transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+            z-index: 100;
+        }
+        .bottom-sheet.show {
+            transform: translateY(0);
+        }
+        .bottom-sheet-overlay {
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0.4);
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.3s;
+            z-index: 90;
+        }
+        .bottom-sheet-overlay.show {
+            opacity: 1;
+            visibility: visible;
+        }
+        .sheet-close {
+            position: absolute;
+            top: 16px;
+            right: 16px;
+            font-size: 20px;
+            color: var(--mute-soft);
+            background: none;
+            border: none;
+            padding: 4px;
+        }
+
+    </style>
+</head>
+<body>
+    <div class="map-section">
+        <div id="map-container"></div>
+        <div class="header-controls">
+            <select><option>FY2526</option></select>
+            <select><option>Q4</option></select>
+            <button id="btn-reset">重置地图</button>
+        </div>
+        <div class="breadcrumbs" id="breadcrumbs">📍 全国层 (L1)</div>
+    </div>
+
+    <!-- 底部滚动面板 -->
+    <div class="data-section">
+        <div class="data-card">
+            <h3>门店占比</h3>
+            <div id="chart-pie" style="height: 180px; width: 100%;"></div>
+        </div>
+
+        <div class="data-card">
+            <h3>战区大区排名 Top5</h3>
+            <div class="table-responsive">
+                <table>
+                    <tr><th>大区</th><th>战区</th><th>达成率</th></tr>
+                    <!-- 移动端使用 onclick 替代 onmouseover -->
+                    <tr onclick="highlightRegion('东北')"><td>东北</td><td>东北一区</td><td class="text-primary">95.1%</td></tr>
+                    <tr onclick="highlightRegion('东南')"><td>东南</td><td>闽赣</td><td>89.3%</td></tr>
+                    <tr onclick="highlightRegion('华北')"><td>华北</td><td>京津冀</td><td>72.9%</td></tr>
+                    <tr onclick="highlightRegion('华东')"><td>华东</td><td>上海</td><td>74.6%</td></tr>
+                    <tr onclick="highlightRegion('西南')"><td>西南</td><td>川藏</td><td>60.1%</td></tr>
+                </table>
+            </div>
+        </div>
+
+        <div class="data-card">
+            <h3>业务联动明细表</h3>
+            <div class="table-responsive">
+                <table>
+                    <tr>
+                        <th>大区</th><th>战区</th><th>战总</th><th>达成率</th><th>排名</th>
+                    </tr>
+                    <tr onclick="highlightRegion('东北')">
+                        <td>东北</td><td>东北一区</td><td>刘克金</td><td class="text-primary">75.9%</td><td>11</td>
+                    </tr>
+                    <tr onclick="highlightRegion('东南')">
+                        <td>东南</td><td>浙江</td><td>杨在友</td><td class="text-primary">95.1%</td><td>3</td>
+                    </tr>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- 弹窗遮罩 -->
+    <div class="bottom-sheet-overlay" id="sheet-overlay"></div>
+
+    <!-- 客户 360 面板 (Mobile Bottom Sheet) -->
+    <div class="bottom-sheet" id="customer-360">
+        <button class="sheet-close" id="btn-close-sheet">×</button>
+        <h3 style="color:var(--primary); border-bottom-color:var(--primary-ai); padding-right: 20px;">客户 360 视图</h3>
+        <div style="margin-bottom: 12px;">
+            <h4 id="c360-name" style="color:var(--ink-strong); margin-bottom: 8px; font-size: 16px;">联想专卖店 (科技大厦)</h4>
+            <span class="tag">REL</span><span class="tag" style="background:var(--primary);">核心商家</span>
+        </div>
+        <hr style="border:0; border-bottom: 1px solid var(--hairline); margin: 12px 0;">
+        <div style="font-size: 13px; line-height: 1.6; color: var(--ink);">
+            <p><strong style="color:var(--primary-ai);">企业新闻：</strong>近期中标市政府2026年办公设备采购群, 金额 120万。</p>
+            <p><strong style="color:var(--primary-ai);">商机跟进：</strong>方案论证阶段 (Win Rate: 60%)</p>
+            <p><strong style="color:var(--primary-ai);">历史拜访：</strong>2026-05-10 曹永 (已签到)</p>
+            <div style="margin-top: 20px;">
+                <button style="background:var(--primary); color:var(--on-primary); border:none; padding:12px; border-radius: 24px; cursor:pointer; width:100%; font-weight: 500; font-size: 15px;">新建拜访计划</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const chartDom = document.getElementById('map-container');
+        const myChart = echarts.init(chartDom);
+        let currentLevel = 'china'; 
+        let chinaGeoJson = null;
+
+        // 组织架构配置台不变
+        const orgConfig = {
+            "东北": { "东北一区": ["黑龙江省", "吉林省"], "东北二区": ["辽宁省"] },
+            "华北": { "京津冀": ["北京市", "天津市", "河北省"], "晋蒙": ["山西省", "内蒙古自治区"] },
+            "华东": { "上海": ["上海市"], "苏皖": ["江苏省", "安徽省"], "山东": ["山东省"] },
+            "东南": { "浙江": ["浙江省"], "闽赣": ["福建省", "江西省"] },
+            "华中": { "华中一区": ["河南省", "湖北省", "湖南省"] },
+            "华南": { "华南一区": ["广东省", "广西壮族自治区", "海南省"] },
+            "西南": { "川藏": ["四川省", "西藏自治区"], "云贵渝": ["云南省", "贵州省", "重庆市"] },
+            "西北": { "西北大区": ["陕西省", "甘肃省", "宁夏回族自治区", "青海省", "新疆维吾尔自治区"] }
+        };
+
+        const provinceToOrg = {};
+        for (const [regionName, warZones] of Object.entries(orgConfig)) {
+            for (const [zoneName, provinces] of Object.entries(warZones)) {
+                provinces.forEach(p => { provinceToOrg[p] = { region: regionName, zone: zoneName }; });
+            }
+        }
+
+        const pieChart = echarts.init(document.getElementById('chart-pie'));
+        pieChart.setOption({
+            tooltip: { trigger: 'item' },
+            legend: { top: 'bottom', icon: 'circle', itemWidth: 10, itemHeight: 10, textStyle: { fontSize: 10 } },
+            series: [{
+                type: 'pie', radius: ['40%', '65%'], center: ['50%', '40%'],
+                itemStyle: { borderColor: '#FFFFFF', borderWidth: 2 },
+                label: { show: false }, // 移动端饼图标签容易拥挤，关闭外置标签用legend代替
+                data: [
+                    { value: 645, name: 'PC品类店', itemStyle: {color: '#2563EB'} },
+                    { value: 1542, name: '智生活授权', itemStyle: {color: '#2E62FF'} },
+                    { value: 1408, name: '乡镇专卖', itemStyle: {color: '#A3A3A3'} }
+                ]
+            }]
+        });
+
+        // 统一颜色字典不变
+        const regionColors = {
+            "东北": "#E6DFFF", "华北": "#EDF4FF", "华东": "#D7F3FF", "东南": "#F4F1FF", 
+            "华中": "#E6F0FF", "华南": "#FFE6E6", "西南": "#FFF2E6", "西北": "#E6FFE6"
+        };
+        const scatterData = [
+            { name: "联想专卖店A (哈尔滨)", value: [126.642, 45.756, 100], province: "黑龙江省" },
+            { name: "联想专卖店B (长春)", value: [125.324, 43.886, 80], province: "吉林省" }, 
+            { name: "智生活体验店 (福州)", value: [119.306, 26.075, 120], province: "福建省" }, 
+            { name: "大客户C (北京)", value: [116.405, 39.904, 150], province: "北京市" } 
+        ];
+
+        fetch('https://geo.datav.aliyun.com/areas_v3/bound/100000_full.json')
+            .then(res => res.json())
+            .then(geoJson => {
+                chinaGeoJson = geoJson;
+                echarts.registerMap('china', geoJson);
+                renderChinaMap();
+            });
+
+        // L1
+        function renderChinaMap() {
+            currentLevel = 'china';
+            document.getElementById('breadcrumbs').innerText = '📍 全国大区层 (L1) - 点击大区下钻';
+
+            let regionsData = [];
+            if (chinaGeoJson) {
+                const centerProvinces = { "东北": "吉林省", "华北": "河北省", "华东": "安徽省", "东南": "福建省", "华中": "湖北省", "华南": "广东省", "西南": "四川省", "西北": "甘肃省" };
+                chinaGeoJson.features.forEach(f => {
+                    const pName = f.properties.name;
+                    const org = provinceToOrg[pName];
+                    if (org) {
+                        regionsData.push({
+                            name: pName,
+                            itemStyle: { areaColor: regionColors[org.region] || '#FFFFFF' },
+                            label: { show: centerProvinces[org.region] === pName, formatter: () => org.region + "大区", color: '#2563EB', fontSize: 11, fontWeight: 'bold' } // 移动端字号缩小
+                        });
+                    }
+                });
+            }
+
+            myChart.setOption({
+                tooltip: { show: false }, // 移动端关闭悬浮tooltip，用点击交互替代
+                geo: {
+                    map: 'china', roam: true, zoom: 1.2,
+                    itemStyle: { areaColor: '#FFFFFF', borderColor: '#E5E6EB', borderWidth: 1, shadowColor: 'rgba(37,99,235,0.06)', shadowBlur: 10 },
+                    label: { show: false },
+                    emphasis: {
+                        itemStyle: { areaColor: '#EDF4FF', borderColor: '#2563EB' },
+                        label: { show: true, color: '#2563EB', fontWeight: 'bold', fontSize: 10 }
+                    },
+                    regions: regionsData
+                },
+                series: [{
+                    type: 'effectScatter', coordinateSystem: 'geo', data: scatterData, symbolSize: 8,
+                    itemStyle: { color: '#EC4848', shadowBlur: 8, shadowColor: 'rgba(236,72,72,0.5)' }
+                }]
+            }, true);
+        }
+
+        // L2
+        function renderRegionMap(regionName) {
+            currentLevel = regionName;
+            document.getElementById('breadcrumbs').innerText = `📍 ${regionName}大区战区层 (L2)`;
+
+            const regionFeatures = chinaGeoJson.features.filter(f => {
+                const orgInfo = provinceToOrg[f.properties.name];
+                return orgInfo && orgInfo.region === regionName;
+            });
+            echarts.registerMap('region_' + regionName, { type: "FeatureCollection", features: regionFeatures });
+
+            const zoneColors = ['#E8F3FF', '#FFE8E8', '#E8FFE8', '#FFF3E8', '#F3E8FF', '#E8FFFF', '#FFFBE8', '#F0E8FF'];
+            let regionsData = [];
+            const warZones = orgConfig[regionName];
+            let zoneIndex = 0;
+            
+            for (const [zoneName, provinces] of Object.entries(warZones)) {
+                const color = zoneColors[zoneIndex % zoneColors.length];
+                const centerProv = provinces[0]; 
+                provinces.forEach(pName => {
+                    regionsData.push({
+                        name: pName, itemStyle: { areaColor: color },
+                        label: { show: pName === centerProv || provinces.length === 1, formatter: () => zoneName, color: '#2563EB', fontSize: 11, fontWeight: 'bold' }
+                    });
+                });
+                zoneIndex++;
+            }
+
+            const pData = scatterData.filter(d => {
+                const orgInfo = provinceToOrg[d.province];
+                return orgInfo && orgInfo.region === regionName;
+            });
+
+            myChart.setOption({
+                geo: {
+                    map: 'region_' + regionName, roam: true, zoom: 1.2,
+                    itemStyle: { areaColor: '#FFFFFF', borderColor: '#E5E6EB', borderWidth: 1, shadowColor: 'rgba(37,99,235,0.06)', shadowBlur: 10 },
+                    regions: regionsData, label: { show: false },
+                    emphasis: { itemStyle: { areaColor: '#CEDFFF', borderColor: '#2563EB' }, label: { show: true, formatter: '{b}', color: '#2563EB', fontWeight: 'bold', fontSize: 10 } }
+                },
+                series: [{
+                    type: 'effectScatter', coordinateSystem: 'geo', data: pData, symbolSize: 10,
+                    itemStyle: { color: '#EC4848', shadowBlur: 10, shadowColor: 'rgba(236,72,72,0.5)' }
+                }]
+            }, true);
+        }
+
+        // L3
+        function renderProvinceMap(provinceName, adcode) {
+            currentLevel = provinceName;
+            document.getElementById('breadcrumbs').innerText = `📍 ${provinceName}网格层 (L3)`;
+
+            fetch('https://geo.datav.aliyun.com/areas_v3/bound/' + adcode + '_full.json')
+                .then(res => res.json())
+                .then(geoJson => {
+                    echarts.registerMap(provinceName, geoJson);
+                    const pData = scatterData.filter(d => d.province.includes(provinceName) || provinceName.includes(d.province));
+
+                    myChart.setOption({
+                        geo: {
+                            map: provinceName, roam: true, zoom: 1.2,
+                            itemStyle: { areaColor: '#FBFDFF', borderColor: '#B5CFFF', borderWidth: 1 },
+                            emphasis: { itemStyle: { areaColor: '#EDF4FF', borderColor: '#2563EB' } }
+                        },
+                        series: [{
+                            type: 'effectScatter', coordinateSystem: 'geo', data: pData, symbolSize: 12,
+                            itemStyle: { color: '#EC4848', shadowBlur: 10, shadowColor: 'rgba(236,72,72,0.5)' }
+                        }]
+                    }, true);
+                });
+        }
+
+        // 事件处理
+        myChart.on('click', function(params) {
+            if (params.componentType === 'series' && params.seriesType === 'effectScatter') {
+                showCustomerSheet(params.data.name);
+            } else if (params.componentType === 'geo' || (params.componentType === 'series' && params.seriesType === 'map')) {
+                if (currentLevel === 'china') {
+                    if (chinaGeoJson) {
+                        const org = provinceToOrg[params.name];
+                        if (org && org.region) { renderRegionMap(org.region); } 
+                        else {
+                            const feature = chinaGeoJson.features.find(f => f.properties.name === params.name);
+                            if (feature && feature.properties.adcode) { renderProvinceMap(params.name, feature.properties.adcode); }
+                        }
+                    }
+                } else if (orgConfig[currentLevel]) {
+                    if (chinaGeoJson) {
+                        const feature = chinaGeoJson.features.find(f => f.properties.name === params.name);
+                        if (feature && feature.properties.adcode) { renderProvinceMap(params.name, feature.properties.adcode); }
+                    }
+                }
+            }
+        });
+
+        // 外部表格联动
+        window.highlightRegion = function(regionName) {
+            if(currentLevel === 'china') {
+                let targetProvinces = [];
+                if (orgConfig[regionName]) {
+                    Object.values(orgConfig[regionName]).forEach(provs => { targetProvinces = targetProvinces.concat(provs); });
+                } else { targetProvinces = [regionName]; }
+
+                targetProvinces.forEach(p => { myChart.dispatchAction({ type: 'highlight', geoIndex: 0, name: p }); });
+                setTimeout(() => { targetProvinces.forEach(p => { myChart.dispatchAction({ type: 'downplay', geoIndex: 0, name: p }); }); }, 1500);
+            } else {
+                // 如果当前层不是全中国跳回去并高亮
+                renderChinaMap();
+            }
+        };
+
+        // 客户 360 Bottom Sheet 逻辑
+        const sheet = document.getElementById('customer-360');
+        const overlay = document.getElementById('sheet-overlay');
+        const btnClose = document.getElementById('btn-close-sheet');
+
+        function showCustomerSheet(name) {
+            document.getElementById('c360-name').innerText = name;
+            sheet.classList.add('show');
+            overlay.classList.add('show');
+        }
+
+        function hideCustomerSheet() {
+            sheet.classList.remove('show');
+            overlay.classList.remove('show');
+        }
+
+        btnClose.addEventListener('click', hideCustomerSheet);
+        overlay.addEventListener('click', hideCustomerSheet);
+
+        // 重置按钮
+        document.getElementById('btn-reset').addEventListener('click', renderChinaMap);
+        window.addEventListener('resize', () => { myChart.resize(); pieChart.resize(); });
+    </script>
+</body>
+</html>
