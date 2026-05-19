@@ -1,0 +1,415 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>销售通 - 作战地图下钻 (Gaode 引擎版)</title>
+    <style>
+        :root {
+            --brand-1: #E8F3FF;
+            --brand-5: #4080FF;
+            --brand-6: #2563EB;
+            --brand-7: #0E42D2;
+            --text-1: #0F172A;
+            --text-2: #626C7B;
+            --text-3: #9CA3AF;
+            --border-2: #E5E6EB;
+            --spacing-sm: 8px;
+            --spacing-md: 16px;
+            --spacing-lg: 24px;
+            --radius-sm: 4px;
+            --radius-md: 6px;
+            --radius-lg: 8px;
+            --font-family-cn: 'Lenovo China', 'PingFang SC', 'Microsoft YaHei', system-ui, sans-serif;
+            --primary: var(--brand-6);
+            --primary-hover: var(--brand-5);
+            --primary-active: var(--brand-7);
+            --on-primary: #FFFFFF;
+            --ink: var(--text-1);
+            --muted-ink: var(--text-2);
+            --subtle-ink: var(--text-3);
+            --hairline: var(--border-2);
+            --surface: #FFFFFF;
+            --danger: #F53F3F;
+            --page-bg: linear-gradient(180deg, #F8FBFF 0%, #EEF4FF 100%);
+            --shadow-card: 0 10px 24px rgba(15, 23, 42, 0.12);
+            --panel-bg: rgba(255, 255, 255, 0.92);
+            --panel-border: rgba(229, 230, 235, 0.9);
+            --chip-bg: rgba(255, 255, 255, 0.9);
+            --chip-border: var(--border-2);
+            --chip-text: var(--text-1);
+            --chip-hover-bg: var(--brand-1);
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
+        html,
+        body {
+            width: 100%;
+            height: 100%;
+        }
+
+        body {
+            font-family: var(--font-family-cn);
+            background: var(--page-bg);
+            color: var(--ink);
+            overflow: hidden;
+        }
+
+        #map-container {
+            position: absolute;
+            inset: 0;
+            z-index: 1;
+        }
+
+        .page-glow {
+            position: absolute;
+            inset: 0;
+            pointer-events: none;
+            z-index: 2;
+            background:
+                radial-gradient(circle at 10% 10%, rgba(37, 99, 235, 0.16), transparent 28%),
+                radial-gradient(circle at 85% 16%, rgba(0, 180, 42, 0.12), transparent 24%),
+                radial-gradient(circle at 72% 82%, rgba(255, 125, 0, 0.12), transparent 20%);
+        }
+
+        .hero-card,
+        .breadcrumbs,
+        .control-card,
+        .map-footer {
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid var(--panel-border);
+            box-shadow: var(--shadow-card);
+        }
+
+        .hero-card {
+            position: absolute;
+            top: var(--spacing-lg);
+            left: var(--spacing-lg);
+            z-index: 10;
+            width: min(420px, calc(100vw - 48px));
+            padding: 18px 20px;
+            border-radius: 20px;
+            background: linear-gradient(135deg, rgba(255,255,255,0.94), rgba(247,250,255,0.88));
+        }
+
+        .hero-eyebrow {
+            font-size: 12px;
+            font-weight: 700;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            color: var(--primary);
+            margin-bottom: 8px;
+        }
+
+        .hero-title {
+            font-size: 24px;
+            line-height: 1.2;
+            font-weight: 800;
+            color: var(--ink);
+        }
+
+        .hero-subtitle {
+            margin-top: 10px;
+            font-size: 13px;
+            line-height: 1.7;
+            color: var(--muted-ink);
+        }
+
+        .hero-badges {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-top: 14px;
+        }
+
+        .hero-badge {
+            padding: 6px 10px;
+            border-radius: 999px;
+            background: rgba(255, 255, 255, 0.86);
+            border: 1px solid rgba(37, 99, 235, 0.12);
+            color: var(--muted-ink);
+            font-size: 12px;
+            line-height: 1;
+        }
+
+        .breadcrumbs {
+            position: absolute;
+            top: 164px;
+            left: var(--spacing-lg);
+            z-index: 10;
+            display: flex;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: var(--spacing-sm);
+            width: min(560px, calc(100vw - 48px));
+            min-height: 44px;
+            padding: 10px 14px;
+            border-radius: 16px;
+            background: rgba(255, 255, 255, 0.88);
+        }
+
+        .breadcrumb-button,
+        .breadcrumb-current {
+            font-size: 14px;
+            line-height: 1.5;
+        }
+
+        .breadcrumb-button {
+            min-height: 28px;
+            padding: 0 6px;
+            border: 1px solid transparent;
+            border-radius: var(--radius-sm);
+            background: transparent;
+            color: var(--primary);
+            cursor: pointer;
+            font-family: inherit;
+        }
+
+        .breadcrumb-current {
+            color: var(--ink);
+            font-weight: 700;
+        }
+
+        .breadcrumb-separator {
+            color: var(--subtle-ink);
+        }
+
+        .control-panel {
+            position: absolute;
+            top: var(--spacing-lg);
+            right: var(--spacing-lg);
+            z-index: 10;
+            width: min(340px, calc(100vw - 48px));
+        }
+
+        .control-card {
+            background: var(--panel-bg);
+            border-radius: 20px;
+            padding: 16px;
+        }
+
+        .control-card.is-collapsed {
+            padding-bottom: 16px;
+        }
+
+        .control-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: var(--spacing-sm);
+        }
+
+        .control-header-title {
+            font-size: 14px;
+            font-weight: 800;
+            color: var(--ink);
+            line-height: 1.5;
+        }
+
+        .control-toggle,
+        .control-chip,
+        .breadcrumb-button,
+        .footer-button {
+            transition: background-color 120ms ease, border-color 120ms ease, color 120ms ease, box-shadow 120ms ease, transform 120ms ease;
+        }
+
+        .control-toggle,
+        .control-chip,
+        .footer-button {
+            min-height: 32px;
+            padding: 0 12px;
+            border: 1px solid var(--chip-border);
+            background: var(--chip-bg);
+            color: var(--chip-text);
+            border-radius: 999px;
+            font-size: 13px;
+            line-height: 1;
+            cursor: pointer;
+            font-family: inherit;
+        }
+
+        .control-section + .control-section {
+            margin-top: 16px;
+        }
+
+        .control-header + .control-section {
+            margin-top: 16px;
+        }
+
+        .control-title {
+            font-size: 12px;
+            font-weight: 700;
+            color: var(--muted-ink);
+            margin-bottom: 8px;
+            line-height: 1.6;
+        }
+
+        .control-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+
+        .control-chip.is-active,
+        .footer-button.is-primary {
+            background: var(--primary);
+            color: var(--on-primary);
+            border-color: var(--primary);
+        }
+
+        .control-chip:disabled {
+            opacity: 0.45;
+            cursor: not-allowed;
+        }
+
+        .control-chip:hover:not(:disabled),
+        .control-toggle:hover,
+        .breadcrumb-button:hover,
+        .footer-button:hover {
+            background: var(--chip-hover-bg);
+            border-color: var(--primary-hover);
+            color: var(--primary-hover);
+            transform: translateY(-1px);
+        }
+
+        .control-chip.is-active:hover,
+        .footer-button.is-primary:hover {
+            background: var(--primary-hover);
+            color: var(--on-primary);
+        }
+
+        .control-chip:focus-visible,
+        .control-toggle:focus-visible,
+        .breadcrumb-button:focus-visible,
+        .footer-button:focus-visible {
+            outline: none;
+            box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.18);
+        }
+
+        .control-footer {
+            margin-top: 16px;
+            padding-top: 14px;
+            border-top: 1px solid rgba(229, 230, 235, 0.72);
+            font-size: 12px;
+            color: var(--muted-ink);
+            line-height: 1.7;
+        }
+
+        .map-footer {
+            position: absolute;
+            left: var(--spacing-lg);
+            bottom: var(--spacing-lg);
+            z-index: 10;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            width: min(620px, calc(100vw - 48px));
+            padding: 12px 14px;
+            border-radius: 18px;
+            background: rgba(255, 255, 255, 0.88);
+        }
+
+        .map-footer-copy {
+            flex: 1;
+            font-size: 12px;
+            line-height: 1.6;
+            color: var(--muted-ink);
+        }
+
+        .amap-info-content {
+            padding: 0;
+        }
+
+        .customer-popup {
+            min-width: 220px;
+            padding: 12px 14px;
+            font-size: 12px;
+            color: #344054;
+            line-height: 1.6;
+        }
+
+        .customer-popup-title {
+            font-size: 14px;
+            font-weight: 800;
+            color: #0F172A;
+            margin-bottom: 6px;
+        }
+
+        .customer-popup-tags {
+            color: #475467;
+            margin-bottom: 4px;
+        }
+
+        @media (max-width: 960px) {
+            .hero-card {
+                width: calc(100vw - 48px);
+            }
+
+            .breadcrumbs {
+                top: 196px;
+                width: calc(100vw - 48px);
+            }
+
+            .control-panel {
+                top: auto;
+                right: var(--spacing-lg);
+                bottom: 96px;
+                width: calc(100vw - 48px);
+            }
+
+            .map-footer {
+                width: calc(100vw - 48px);
+                flex-direction: column;
+                align-items: flex-start;
+            }
+        }
+    </style>
+    <script>
+        window.GaodePrototypeConfig = {
+            key: "1b46d382a5b15124578e32630b80568e",
+            securityJsCode: ""
+        };
+
+        if (window.GaodePrototypeConfig.securityJsCode) {
+            window._AMapSecurityConfig = {
+                securityJsCode: window.GaodePrototypeConfig.securityJsCode
+            };
+        }
+    </script>
+    <script src="https://webapi.amap.com/maps?v=2.0&key=1b46d382a5b15124578e32630b80568e&plugin=AMap.Scale,AMap.ToolBar,AMap.HeatMap,AMap.DistrictSearch"></script>
+</head>
+<body>
+    <div id="map-container"></div>
+    <div class="page-glow"></div>
+
+    <section class="hero-card">
+        <div class="hero-eyebrow">Gaode Prototype</div>
+        <h1 class="hero-title">销售通作战地图下钻</h1>
+        <p class="hero-subtitle">首个实现切片使用高德地图引擎承载交互、打点与热力图，边界层暂由 GeoJSON 适配器承接，先对齐 v2 的导航与业务图层行为。</p>
+        <div class="hero-badges">
+            <span class="hero-badge">AMap Engine</span>
+            <span class="hero-badge">Breadcrumb Drilldown</span>
+            <span class="hero-badge">Customer Overlay</span>
+            <span class="hero-badge">Heatmap Toggle</span>
+        </div>
+    </section>
+
+    <div class="breadcrumbs" id="breadcrumbs"></div>
+    <div class="control-panel" id="control-panel"></div>
+
+    <div class="map-footer">
+        <div class="map-footer-copy" id="map-footer-copy">当前切片：高德 JS 地图引擎 + v2 GeoJSON 边界适配层。后续可在 boundary service 内平滑切换到 DistrictSearch / Web Service。</div>
+        <button class="footer-button is-primary" id="btn-reset" type="button">重置全国</button>
+    </div>
+
+    <script src="../v2/runtime/map-data.js"></script>
+    <script src="../v2/runtime/drilldown-state.js"></script>
+    <script src="../v2/runtime/map-store.js"></script>
+    <script src="../v2/runtime/geo-loader.js"></script>
+    <script src="./runtime/boundary-service.js"></script>
+    <script src="./runtime/map-shell.js"></script>
+    <script src="./runtime/app.js"></script>
+</body>
+</html>
