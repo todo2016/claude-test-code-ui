@@ -100,14 +100,19 @@
             + "</div>";
     }
 
-    function updateFooterCopy(store) {
+    function updateFooterCopy(store, mapShell) {
         const footerCopy = document.getElementById("map-footer-copy");
         if (!footerCopy) {
             return;
         }
 
         const state = store.getState();
-        footerCopy.textContent = "当前切片：高德标准瓦片底图 + 路网层 + DistrictSearch 行政边界。当前角色「" + state.roles.find(function(role) { return role.id === state.activeRoleId; }).label + "」，客户点 " + state.customerPointCount + " 个，热力源 " + state.heatmapPointCount + " 个。";
+        const currentMapState = mapShell && typeof mapShell.getCurrentState === "function" ? mapShell.getCurrentState() : null;
+        const featureCount = mapShell && typeof mapShell.getCurrentFeatureCount === "function" ? mapShell.getCurrentFeatureCount() : 0;
+        const stateLabel = currentMapState && currentMapState.label ? currentMapState.label : "未就绪";
+        const stateType = currentMapState && currentMapState.type ? currentMapState.type : "unknown";
+
+        footerCopy.textContent = "当前切片：高德标准瓦片底图 + 路网层 + DistrictSearch 行政边界。当前角色「" + state.roles.find(function(role) { return role.id === state.activeRoleId; }).label + "」，客户点 " + state.customerPointCount + " 个，热力源 " + state.heatmapPointCount + " 个。地图状态：" + stateType + " / " + stateLabel + " / 边界数 " + featureCount + "。";
     }
 
     function bootstrap() {
@@ -174,7 +179,7 @@
 
         applyThemeTokens(store.getDataSnapshot().theme);
         renderControlPanel(controlPanelEl, store);
-        updateFooterCopy(store);
+        updateFooterCopy(store, mapShell);
 
         controlPanelEl.addEventListener("click", function(event) {
             const target = event.target.closest("button[data-action]");
@@ -224,7 +229,6 @@
             const state = store.getState();
             applyThemeTokens(store.getDataSnapshot().theme);
             renderControlPanel(controlPanelEl, store);
-            updateFooterCopy(store);
 
             if (isMapReady) {
                 if (state.activeRoleId !== previousRoleId) {
@@ -234,6 +238,8 @@
                     mapShell.refresh();
                 }
             }
+
+            updateFooterCopy(store, mapShell);
         });
 
         boundaryService.fetchChinaGeoJson()
@@ -242,6 +248,7 @@
                 isMapReady = true;
                 previousRoleId = store.getState().activeRoleId;
                 mapShell.applyRoleScope(store.getDataSnapshot().activeRoleProfile);
+                updateFooterCopy(store, mapShell);
             })
             .catch(function(error) {
                 console.error("Failed to bootstrap Gaode map shell", error);

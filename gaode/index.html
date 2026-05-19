@@ -384,30 +384,30 @@
     <div id="map-container"></div>
     <div class="page-glow"></div>
 
-    <section class="hero-card">
+    <!-- <section class="hero-card">
         <div class="hero-eyebrow">Gaode Prototype</div>
         <h1 class="hero-title">销售通作战地图下钻</h1>
-        <p class="hero-subtitle">首个实现切片使用高德地图引擎承载交互、打点与热力图，边界层暂由 GeoJSON 适配器承接，先对齐 v2 的导航与业务图层行为。</p>
+        <p class="hero-subtitle">当前版本使用高德地图引擎承载交互、打点与热力图，标准行政边界由 DistrictSearch 提供，大区与战区视图由 gaode 目录下私有业务数据驱动。</p>
         <div class="hero-badges">
             <span class="hero-badge">AMap Engine</span>
             <span class="hero-badge">Breadcrumb Drilldown</span>
             <span class="hero-badge">Customer Overlay</span>
             <span class="hero-badge">Heatmap Toggle</span>
         </div>
-    </section>
+    </section> -->
 
     <div class="breadcrumbs" id="breadcrumbs"></div>
     <div class="control-panel" id="control-panel"></div>
 
     <div class="map-footer">
-        <div class="map-footer-copy" id="map-footer-copy">当前切片：高德 JS 地图引擎 + v2 GeoJSON 边界适配层。后续可在 boundary service 内平滑切换到 DistrictSearch / Web Service。</div>
+        <div class="map-footer-copy" id="map-footer-copy">当前切片：高德标准底图 + DistrictSearch 行政边界 + gaode 私有业务数据。支持全国、大区、战区与省市区下钻。</div>
         <button class="footer-button is-primary" id="btn-reset" type="button">重置全国</button>
     </div>
 
-    <script src="../v2/runtime/map-data.js"></script>
-    <script src="../v2/runtime/drilldown-state.js"></script>
-    <script src="../v2/runtime/map-store.js"></script>
-    <script src="../v2/runtime/geo-loader.js"></script>
+    <script src="./runtime/map-data.js"></script>
+    <script src="./runtime/drilldown-state.js"></script>
+    <script src="./runtime/map-store.js"></script>
+    <script src="./runtime/geo-loader.js"></script>
     <script src="./runtime/boundary-service.js"></script>
     <script src="./runtime/map-shell.js"></script>
     <script src="./runtime/app.js"></script>

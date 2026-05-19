@@ -199,26 +199,10 @@
                 return Promise.resolve(collectionCache.get(cacheKey));
             }
 
-            return searchDistrict("中国", {
-                level: "country",
-                subdistrict: 1,
-                extensions: "base",
-                showbiz: false
-            })
-                .then(function(country) {
-                    return Promise.all(extractChildren(country).map(function(child) {
-                        return fetchDistrictFeature(child.adcode || child.name, child.level || "province");
-                    }));
-                })
-                .then(function(features) {
-                    const geoJson = buildFeatureCollection(features.filter(Boolean));
-                    collectionCache.set(cacheKey, geoJson);
-                    return geoJson;
-                })
-                .catch(function(error) {
-                    console.warn("DistrictSearch china boundary fallback to geo-loader", error);
-                    return geoLoader.fetchChinaGeoJson();
-                });
+            return geoLoader.fetchChinaGeoJson().then(function(geoJson) {
+                collectionCache.set(cacheKey, geoJson);
+                return geoJson;
+            });
         }
 
         function fetchGeoJson(scope) {

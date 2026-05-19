@@ -26,6 +26,45 @@
             return store.getDataSnapshot();
         }
 
+        function normalizeProvinceName(name) {
+            return String(name || "")
+                .replace(/(维吾尔自治区|壮族自治区|回族自治区|特别行政区|自治区|省|市)$/u, "")
+                .trim();
+        }
+
+        function buildProvinceAliasMap(data) {
+            const aliasMap = {};
+
+            Object.keys(data.provinceToOrg || {}).forEach(function(provinceName) {
+                aliasMap[provinceName] = provinceName;
+                aliasMap[normalizeProvinceName(provinceName)] = provinceName;
+            });
+
+            return aliasMap;
+        }
+
+        function getProvinceAliasMap(data) {
+            if (!data.__provinceAliasMap) {
+                data.__provinceAliasMap = buildProvinceAliasMap(data);
+            }
+
+            return data.__provinceAliasMap;
+        }
+
+        function getCanonicalProvinceName(name, data) {
+            const aliasMap = getProvinceAliasMap(data);
+            const rawName = String(name || "");
+            return aliasMap[rawName] || aliasMap[normalizeProvinceName(rawName)] || rawName;
+        }
+
+        function getProvinceOrgInfo(name, data) {
+            return data.provinceToOrg[getCanonicalProvinceName(name, data)] || null;
+        }
+
+        function provinceNamesMatch(left, right, data) {
+            return getCanonicalProvinceName(left, data) === getCanonicalProvinceName(right, data);
+        }
+
         function getFeatureByName(geoJson, name) {
             if (!geoJson || !geoJson.features) {
                 return null;
@@ -133,14 +172,14 @@
 
             if (state.type === "region") {
                 return data.customerPoints.filter(function(customer) {
-                    const orgInfo = data.provinceToOrg[customer.provinceName];
+                    const orgInfo = getProvinceOrgInfo(customer.provinceName, data);
                     return orgInfo && orgInfo.region === state.regionName;
                 });
             }
 
             if (state.type === "zone") {
                 return data.customerPoints.filter(function(customer) {
-                    const orgInfo = data.provinceToOrg[customer.provinceName];
+                    const orgInfo = getProvinceOrgInfo(customer.provinceName, data);
                     return orgInfo && orgInfo.region === state.regionName && orgInfo.zone === state.zoneName;
                 });
             }
@@ -148,7 +187,7 @@
             if (state.type === "geo") {
                 if (state.level === "province") {
                     return data.customerPoints.filter(function(customer) {
-                        return customer.provinceName === state.name || customer.provinceAdcode === state.adcode;
+                        return provinceNamesMatch(customer.provinceName, state.name, data) || customer.provinceAdcode === state.adcode;
                     });
                 }
 
@@ -177,14 +216,14 @@
 
             if (state.type === "region") {
                 return data.heatmapPoints.filter(function(point) {
-                    const orgInfo = data.provinceToOrg[point.provinceName];
+                    const orgInfo = getProvinceOrgInfo(point.provinceName, data);
                     return orgInfo && orgInfo.region === state.regionName;
                 });
             }
 
             if (state.type === "zone") {
                 return data.heatmapPoints.filter(function(point) {
-                    const orgInfo = data.provinceToOrg[point.provinceName];
+                    const orgInfo = getProvinceOrgInfo(point.provinceName, data);
                     return orgInfo && orgInfo.region === state.regionName && orgInfo.zone === state.zoneName;
                 });
             }
@@ -192,7 +231,7 @@
             if (state.type === "geo") {
                 if (state.level === "province") {
                     return data.heatmapPoints.filter(function(point) {
-                        return point.provinceName === state.name || point.provinceAdcode === state.adcode;
+                        return provinceNamesMatch(point.provinceName, state.name, data) || point.provinceAdcode === state.adcode;
                     });
                 }
 
@@ -329,12 +368,60 @@
             renderCustomerPoints(currentState);
         }
 
-        function fitBoundaryView() {
-            if (!boundaryOverlays.length) {
+        function getGeoJsonBounds(geoJson) {
+            let minLng = Infinity;
+            let minLat = Infinity;
+            let maxLng = -Infinity;
+            let maxLat = -Infinity;
+
+            if (!geoJson || !Array.isArray(geoJson.features)) {
+                return null;
+            }
+
+            geoJson.features.forEach(function(feature) {
+                boundaryService.featureToPaths(feature).forEach(function(polygon) {
+                    polygon.forEach(function(ring) {
+                        ring.forEach(function(point) {
+                            minLng = Math.min(minLng, point[0]);
+                            maxLng = Math.max(maxLng, point[0]);
+                            minLat = Math.min(minLat, point[1]);
+                            maxLat = Math.max(maxLat, point[1]);
+                        });
+                    });
+                });
+            });
+
+            if (minLng === Infinity || minLat === Infinity || maxLng === -Infinity || maxLat === -Infinity) {
+                return null;
+            }
+
+            return {
+                southwest: [minLng, minLat],
+                northeast: [maxLng, maxLat]
+            };
+        }
+
+        function fitBoundaryView(geoJson) {
+            const bounds = getGeoJsonBounds(geoJson || currentGeoJson);
+
+            if (!bounds) {
+                if (boundaryOverlays.length) {
+                    map.setFitView(boundaryOverlays, false, FIT_VIEW_PADDING);
+                }
                 return;
             }
 
-            map.setFitView(boundaryOverlays, false, FIT_VIEW_PADDING);
+            if (global.AMap && typeof global.AMap.Bounds === "function" && typeof global.AMap.LngLat === "function") {
+                map.setBounds(new global.AMap.Bounds(
+                    new global.AMap.LngLat(bounds.southwest[0], bounds.southwest[1]),
+                    new global.AMap.LngLat(bounds.northeast[0], bounds.northeast[1])
+                ));
+                return;
+            }
+
+            if (boundaryOverlays.length) {
+                map.setFitView(boundaryOverlays, false, FIT_VIEW_PADDING);
+            }
         }
 
         function createPolygon(path, feature, style, clickHandler) {
@@ -395,6 +482,7 @@
             const geoJson = options.geoJson;
             const clickHandler = options.onFeatureClick;
             const labels = [];
+            const extraLabels = Array.isArray(options.extraLabels) ? options.extraLabels : [];
 
             clearBoundaryOverlays();
 
@@ -412,6 +500,12 @@
                 }
             });
 
+            extraLabels.forEach(function(label) {
+                if (label) {
+                    labels.push(createTextLabel(label));
+                }
+            });
+
             labelOverlays = labels;
 
             if (boundaryOverlays.length) {
@@ -423,7 +517,7 @@
             }
 
             if (options.fitView !== false) {
-                fitBoundaryView();
+                fitBoundaryView(geoJson);
             }
 
             refreshBusinessOverlays();
@@ -445,8 +539,8 @@
 
         function buildChinaLabel(feature) {
             const data = getDataSnapshot();
-            const provinceName = feature.properties.name;
-            const orgInfo = data.provinceToOrg[provinceName];
+            const provinceName = getCanonicalProvinceName(feature.properties.name, data);
+            const orgInfo = getProvinceOrgInfo(provinceName, data);
 
             if (!orgInfo) {
                 return null;
@@ -465,14 +559,22 @@
 
         function buildRegionLabel(feature, regionName) {
             const data = getDataSnapshot();
-            const provinceName = feature.properties.name;
+            const provinceName = getCanonicalProvinceName(feature.properties.name, data);
             const zones = data.orgConfig[regionName] || {};
             let labelText = null;
 
             Object.keys(zones).forEach(function(zoneName) {
                 const provinces = zones[zoneName];
                 const centerProvince = provinces[0];
-                if ((provinceName === centerProvince || provinces.length === 1) && provinces.indexOf(provinceName) >= 0) {
+                const belongsToZone = provinces.some(function(item) {
+                    return provinceNamesMatch(item, provinceName, data);
+                });
+
+                if (!belongsToZone) {
+                    return;
+                }
+
+                if (provinceNamesMatch(provinceName, centerProvince, data) || provinces.length === 1) {
                     labelText = zoneName;
                 }
             });
@@ -512,6 +614,79 @@
             };
         }
 
+        function getFeatureSetCenter(features) {
+            const centers = (features || [])
+                .map(function(feature) {
+                    return boundaryService.getFeatureCenter(feature);
+                })
+                .filter(function(center) {
+                    return Array.isArray(center) && center.length >= 2;
+                });
+
+            if (!centers.length) {
+                return [104.195397, 35.86166];
+            }
+
+            const total = centers.reduce(function(result, center) {
+                return [result[0] + center[0], result[1] + center[1]];
+            }, [0, 0]);
+
+            return [total[0] / centers.length, total[1] / centers.length];
+        }
+
+        function findFeatureByProvinceName(features, provinceName, data) {
+            return (features || []).find(function(feature) {
+                return provinceNamesMatch(feature.properties && feature.properties.name, provinceName, data);
+            }) || null;
+        }
+
+        function buildAggregateLabel(text, features, anchorProvinceName, data) {
+            if (!features || !features.length) {
+                return null;
+            }
+
+            const anchorFeature = anchorProvinceName ? findFeatureByProvinceName(features, anchorProvinceName, data) : null;
+
+            return {
+                text: text,
+                position: anchorFeature ? boundaryService.getFeatureCenter(anchorFeature) : getFeatureSetCenter(features),
+                color: data.theme && data.theme.map ? data.theme.map.labelColor || "#2563EB" : "#2563EB",
+                background: "rgba(255,255,255,0.82)",
+                fontSize: "13px",
+                fontWeight: "800",
+                padding: "4px 10px"
+            };
+        }
+
+        function buildChinaBusinessLabels(geoJson) {
+            const data = getDataSnapshot();
+
+            return Object.keys(data.orgConfig || {}).map(function(regionName) {
+                const features = (geoJson.features || []).filter(function(feature) {
+                    const orgInfo = getProvinceOrgInfo(feature.properties.name, data);
+                    return orgInfo && orgInfo.region === regionName;
+                });
+
+                return buildAggregateLabel(regionName + "大区", features, data.regionLabelAnchors[regionName], data);
+            }).filter(Boolean);
+        }
+
+        function buildRegionBusinessLabels(geoJson, regionName) {
+            const data = getDataSnapshot();
+            const zones = data.orgConfig[regionName] || {};
+
+            return Object.keys(zones).map(function(zoneName) {
+                const provinces = zones[zoneName] || [];
+                const features = (geoJson.features || []).filter(function(feature) {
+                    return provinces.some(function(provinceName) {
+                        return provinceNamesMatch(feature.properties.name, provinceName, data);
+                    });
+                });
+
+                return buildAggregateLabel(zoneName, features, provinces[0], data);
+            }).filter(Boolean);
+        }
+
         function renderChinaMap(requestId) {
             if (requestId !== renderRequestId) {
                 return;
@@ -524,12 +699,15 @@
             renderGeoJson({
                 geoJson: chinaGeoJson,
                 getFeatureStyle: function(feature) {
-                    const orgInfo = data.provinceToOrg[feature.properties.name];
+                    const orgInfo = getProvinceOrgInfo(feature.properties.name, data);
                     return buildBaseFeatureStyle(orgInfo ? data.regionColors[orgInfo.region] : null);
                 },
-                getFeatureLabel: buildChinaLabel,
+                getFeatureLabel: function() {
+                    return null;
+                },
+                extraLabels: buildChinaBusinessLabels(chinaGeoJson),
                 onFeatureClick: function(feature) {
-                    const orgInfo = data.provinceToOrg[feature.properties.name];
+                    const orgInfo = getProvinceOrgInfo(feature.properties.name, data);
                     if (orgInfo && orgInfo.region) {
                         renderByState(drilldown.createRegionState(orgInfo.region), { push: true });
                     }
@@ -544,7 +722,7 @@
 
             const data = getDataSnapshot();
             const regionFeatures = chinaGeoJson.features.filter(function(feature) {
-                const orgInfo = data.provinceToOrg[feature.properties.name];
+                const orgInfo = getProvinceOrgInfo(feature.properties.name, data);
                 return orgInfo && orgInfo.region === state.regionName;
             });
             const regionGeoJson = boundaryService.buildFeatureCollection(regionFeatures);
@@ -555,17 +733,18 @@
             renderGeoJson({
                 geoJson: regionGeoJson,
                 getFeatureStyle: function(feature) {
-                    const orgInfo = data.provinceToOrg[feature.properties.name] || {};
+                    const orgInfo = getProvinceOrgInfo(feature.properties.name, data) || {};
                     const zoneNames = Object.keys(data.orgConfig[state.regionName] || {});
                     const zoneIndex = zoneNames.indexOf(orgInfo.zone);
                     const fillColor = zoneIndex >= 0 ? data.zoneColors[zoneIndex % data.zoneColors.length] : null;
                     return buildBaseFeatureStyle(fillColor);
                 },
-                getFeatureLabel: function(feature) {
-                    return buildRegionLabel(feature, state.regionName);
+                getFeatureLabel: function() {
+                    return null;
                 },
+                extraLabels: buildRegionBusinessLabels(regionGeoJson, state.regionName),
                 onFeatureClick: function(feature) {
-                    const orgInfo = data.provinceToOrg[feature.properties.name];
+                    const orgInfo = getProvinceOrgInfo(feature.properties.name, data);
                     if (orgInfo && orgInfo.zone) {
                         renderByState(
                             drilldown.createZoneState(
@@ -588,7 +767,8 @@
             const data = getDataSnapshot();
             const provinceSet = new Set(state.provinces || []);
             const zoneFeatures = chinaGeoJson.features.filter(function(feature) {
-                return provinceSet.has(feature.properties.name);
+                const provinceName = getCanonicalProvinceName(feature.properties.name, data);
+                return provinceSet.has(provinceName);
             });
             const zoneGeoJson = boundaryService.buildFeatureCollection(zoneFeatures);
             const zoneNames = Object.keys(data.orgConfig[state.regionName] || {});
@@ -734,6 +914,9 @@
             applyRoleScope: applyRoleScope,
             getCurrentState: function() {
                 return currentState;
+            },
+            getCurrentFeatureCount: function() {
+                return currentGeoJson && Array.isArray(currentGeoJson.features) ? currentGeoJson.features.length : 0;
             },
             getNavigationStack: function() {
                 return navigationStack.slice();
