@@ -1,4 +1,15 @@
 (function(global) {
+    function updateLoadingIndicator(loadingIndicatorEl, loadingCopyEl, loadingState) {
+        if (!loadingIndicatorEl || !loadingCopyEl) {
+            return;
+        }
+
+        const isVisible = !!(loadingState && loadingState.visible);
+        loadingIndicatorEl.classList.toggle("is-visible", isVisible);
+        loadingIndicatorEl.setAttribute("aria-hidden", isVisible ? "false" : "true");
+        loadingCopyEl.textContent = isVisible && loadingState.text ? loadingState.text : "正在加载地图边界...";
+    }
+
     function applyThemeTokens(theme) {
         if (!theme || !theme.tokens) {
             return;
@@ -123,6 +134,8 @@
         const mapEl = document.getElementById("map-container");
         const breadcrumbsEl = document.getElementById("breadcrumbs");
         const controlPanelEl = document.getElementById("control-panel");
+        const loadingIndicatorEl = document.getElementById("map-loading");
+        const loadingCopyEl = document.getElementById("map-loading-copy");
         const resetButton = document.getElementById("btn-reset");
 
         if (!mapEl || !breadcrumbsEl || !controlPanelEl) {
@@ -159,7 +172,10 @@
             map: map,
             breadcrumbsEl: breadcrumbsEl,
             store: store,
-            boundaryService: boundaryService
+            boundaryService: boundaryService,
+            onLoadingChange: function(loadingState) {
+                updateLoadingIndicator(loadingIndicatorEl, loadingCopyEl, loadingState);
+            }
         });
         let isMapReady = false;
         let previousRoleId = store.getState().activeRoleId;
@@ -180,6 +196,7 @@
         applyThemeTokens(store.getDataSnapshot().theme);
         renderControlPanel(controlPanelEl, store);
         updateFooterCopy(store, mapShell);
+        updateLoadingIndicator(loadingIndicatorEl, loadingCopyEl, { visible: false });
 
         controlPanelEl.addEventListener("click", function(event) {
             const target = event.target.closest("button[data-action]");

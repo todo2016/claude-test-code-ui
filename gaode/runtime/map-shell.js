@@ -6,6 +6,7 @@
         const breadcrumbsEl = config.breadcrumbsEl;
         const store = config.store;
         const boundaryService = config.boundaryService;
+        const onLoadingChange = typeof config.onLoadingChange === "function" ? config.onLoadingChange : function() {};
         const ROOT_STATE = drilldown.ROOT_STATE;
         const FIT_VIEW_PADDING = [84, 360, 96, 96];
         let navigationStack = [ROOT_STATE];
@@ -146,6 +147,25 @@
                 }
 
                 breadcrumbsEl.appendChild(element);
+            });
+        }
+
+        function buildLoadingText(state) {
+            if (!state) {
+                return "正在加载地图边界...";
+            }
+
+            if (state.type === "geo" && state.label) {
+                return "正在加载「" + state.label + "」边界...";
+            }
+
+            return "正在加载地图边界...";
+        }
+
+        function setLoadingState(visible, state) {
+            onLoadingChange({
+                visible: !!visible,
+                text: visible ? buildLoadingText(state) : ""
             });
         }
 
@@ -461,21 +481,32 @@
         }
 
         function createTextLabel(label) {
-            return new global.AMap.Text({
+            const textLabel = new global.AMap.Text({
                 text: label.text,
                 position: label.position,
                 anchor: "center",
+                bubble: true,
+                cursor: label.onClick ? "pointer" : "default",
+                zIndex: label.zIndex == null ? 220 : label.zIndex,
                 style: {
-                    background: label.background || "rgba(255,255,255,0.82)",
+                    background: label.background || "rgba(255,255,255,0.92)",
                     border: label.border || "1px solid rgba(255,255,255,0.28)",
                     padding: label.padding || "2px 8px",
                     borderRadius: label.borderRadius || "999px",
                     color: label.color,
                     fontSize: label.fontSize || "12px",
                     fontWeight: label.fontWeight || "700",
-                    boxShadow: "0 4px 16px rgba(15, 23, 42, 0.12)"
+                    boxShadow: label.boxShadow || "0 8px 22px rgba(15, 23, 42, 0.18)"
                 }
             });
+
+            if (label.onClick) {
+                textLabel.on("click", function() {
+                    label.onClick();
+                });
+            }
+
+            return textLabel;
         }
 
         function renderGeoJson(options) {
@@ -496,7 +527,11 @@
 
                 const label = options.getFeatureLabel(feature);
                 if (label) {
-                    labels.push(createTextLabel(label));
+                    labels.push(createTextLabel(Object.assign({}, label, {
+                        onClick: clickHandler ? function() {
+                            clickHandler(feature);
+                        } : null
+                    })));
                 }
             });
 
@@ -523,17 +558,35 @@
             refreshBusinessOverlays();
         }
 
-        function buildBaseFeatureStyle(fillColor) {
+        function hexToRgba(color, alpha) {
+            if (!color || color.charAt(0) !== "#") {
+                return color || "rgba(255,255,255," + alpha + ")";
+            }
+
+            const hex = color.slice(1);
+            const normalized = hex.length === 3 ? hex.split("").map(function(char) {
+                return char + char;
+            }).join("") : hex;
+
+            if (normalized.length !== 6) {
+                return color;
+            }
+
+            return "rgba(" + parseInt(normalized.slice(0, 2), 16) + ", " + parseInt(normalized.slice(2, 4), 16) + ", " + parseInt(normalized.slice(4, 6), 16) + ", " + alpha + ")";
+        }
+
+        function buildBaseFeatureStyle(fillColor, options) {
             const theme = getDataSnapshot().theme || {};
             const mapTheme = theme.map || {};
+            const styleOptions = options || {};
 
             return {
                 fillColor: fillColor || mapTheme.areaColor || "#FFFFFF",
-                fillOpacity: 0.1,
-                hoverFillOpacity: 0.18,
-                strokeColor: mapTheme.borderColor || "#9FB3D1",
-                hoverStrokeColor: mapTheme.emphasisBorderColor || "#2563EB",
-                strokeWeight: 1.2
+                fillOpacity: styleOptions.fillOpacity == null ? 0.1 : styleOptions.fillOpacity,
+                hoverFillOpacity: styleOptions.hoverFillOpacity == null ? 0.18 : styleOptions.hoverFillOpacity,
+                strokeColor: styleOptions.strokeColor || mapTheme.borderColor || "#9FB3D1",
+                hoverStrokeColor: styleOptions.hoverStrokeColor || mapTheme.emphasisBorderColor || "#2563EB",
+                strokeWeight: styleOptions.strokeWeight == null ? 1.2 : styleOptions.strokeWeight
             };
         }
 
@@ -640,26 +693,34 @@
             }) || null;
         }
 
-        function buildAggregateLabel(text, features, anchorProvinceName, data) {
+        function buildAggregateLabel(text, features, anchorProvinceName, data, options) {
             if (!features || !features.length) {
                 return null;
             }
 
+            const labelOptions = options || {};
             const anchorFeature = anchorProvinceName ? findFeatureByProvinceName(features, anchorProvinceName, data) : null;
+            const accentColor = labelOptions.accentColor || (data.theme && data.theme.map ? data.theme.map.labelColor || "#2563EB" : "#2563EB");
 
             return {
                 text: text,
                 position: anchorFeature ? boundaryService.getFeatureCenter(anchorFeature) : getFeatureSetCenter(features),
-                color: data.theme && data.theme.map ? data.theme.map.labelColor || "#2563EB" : "#2563EB",
-                background: "rgba(255,255,255,0.82)",
-                fontSize: "13px",
-                fontWeight: "800",
-                padding: "4px 10px"
+                color: accentColor,
+                background: labelOptions.background || hexToRgba(accentColor, 0.26),
+                border: labelOptions.border || "1px solid " + hexToRgba(accentColor, 0.52),
+                fontSize: labelOptions.fontSize || "15px",
+                fontWeight: labelOptions.fontWeight || "900",
+                padding: labelOptions.padding || "6px 12px",
+                zIndex: labelOptions.zIndex == null ? 260 : labelOptions.zIndex,
+                boxShadow: labelOptions.boxShadow || "0 10px 24px rgba(15, 23, 42, 0.24)",
+                onClick: labelOptions.onClick || null
             };
         }
 
         function buildChinaBusinessLabels(geoJson) {
             const data = getDataSnapshot();
+            const primaryColor = "#2563EB";
+            const primaryHoverColor = "#4080FF";
 
             return Object.keys(data.orgConfig || {}).map(function(regionName) {
                 const features = (geoJson.features || []).filter(function(feature) {
@@ -667,7 +728,16 @@
                     return orgInfo && orgInfo.region === regionName;
                 });
 
-                return buildAggregateLabel(regionName + "大区", features, data.regionLabelAnchors[regionName], data);
+                return buildAggregateLabel(regionName + "大区", features, data.regionLabelAnchors[regionName], data, {
+                    accentColor: "#FFFFFF",
+                    background: primaryColor,
+                    border: "1px solid " + primaryHoverColor,
+                    boxShadow: "0 12px 28px rgba(37, 99, 235, 0.34)",
+                    zIndex: 280,
+                    onClick: function() {
+                        renderByState(drilldown.createRegionState(regionName), { push: true });
+                    }
+                });
             }).filter(Boolean);
         }
 
@@ -683,7 +753,17 @@
                     });
                 });
 
-                return buildAggregateLabel(zoneName, features, provinces[0], data);
+                const zoneNames = Object.keys(zones);
+                const zoneIndex = zoneNames.indexOf(zoneName);
+
+                return buildAggregateLabel(zoneName, features, provinces[0], data, {
+                    accentColor: data.zoneColors[zoneIndex >= 0 ? zoneIndex % data.zoneColors.length : 0],
+                    zIndex: 250,
+                    fontSize: "14px",
+                    onClick: function() {
+                        renderByState(drilldown.createZoneState(regionName, zoneName, provinces), { push: true });
+                    }
+                });
             }).filter(Boolean);
         }
 
@@ -700,7 +780,11 @@
                 geoJson: chinaGeoJson,
                 getFeatureStyle: function(feature) {
                     const orgInfo = getProvinceOrgInfo(feature.properties.name, data);
-                    return buildBaseFeatureStyle(orgInfo ? data.regionColors[orgInfo.region] : null);
+                    return buildBaseFeatureStyle(orgInfo ? data.regionColors[orgInfo.region] : null, {
+                        fillOpacity: 0.24,
+                        hoverFillOpacity: 0.34,
+                        strokeWeight: 1.4
+                    });
                 },
                 getFeatureLabel: function() {
                     return null;
@@ -737,7 +821,11 @@
                     const zoneNames = Object.keys(data.orgConfig[state.regionName] || {});
                     const zoneIndex = zoneNames.indexOf(orgInfo.zone);
                     const fillColor = zoneIndex >= 0 ? data.zoneColors[zoneIndex % data.zoneColors.length] : null;
-                    return buildBaseFeatureStyle(fillColor);
+                    return buildBaseFeatureStyle(fillColor, {
+                        fillOpacity: 0.28,
+                        hoverFillOpacity: 0.38,
+                        strokeWeight: 1.4
+                    });
                 },
                 getFeatureLabel: function() {
                     return null;
@@ -825,8 +913,13 @@
                             }
                         }
                     });
+
+                    setLoadingState(false, state);
                 })
                 .catch(function(error) {
+                    if (requestId === renderRequestId) {
+                        setLoadingState(false, state);
+                    }
                     console.error("Failed to load boundary details for drilldown", error);
                 });
         }
@@ -838,6 +931,12 @@
                 updateBreadcrumbs();
             }
             renderRequestId += 1;
+
+            if (state.type === "geo" && !state.inlineGeoJson) {
+                setLoadingState(true, state);
+            } else {
+                setLoadingState(false, state);
+            }
 
             if (state.type === "china") {
                 renderChinaMap(renderRequestId);

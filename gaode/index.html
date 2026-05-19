@@ -136,9 +136,9 @@
 
         .breadcrumbs {
             position: absolute;
-            top: 164px;
+            top: var(--spacing-lg);
             left: var(--spacing-lg);
-            z-index: 10;
+            z-index: 16;
             display: flex;
             align-items: center;
             flex-wrap: wrap;
@@ -147,7 +147,7 @@
             min-height: 44px;
             padding: 10px 14px;
             border-radius: 16px;
-            background: rgba(255, 255, 255, 0.88);
+            background: rgba(255, 255, 255, 0.94);
         }
 
         .breadcrumb-button,
@@ -311,6 +311,61 @@
             background: rgba(255, 255, 255, 0.88);
         }
 
+        .map-loading {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            z-index: 18;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            min-width: 220px;
+            padding: 14px 18px;
+            border: 1px solid rgba(37, 99, 235, 0.18);
+            border-radius: 16px;
+            background: rgba(255, 255, 255, 0.94);
+            box-shadow: 0 16px 36px rgba(15, 23, 42, 0.18);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            transform: translate(-50%, -50%);
+            opacity: 0;
+            visibility: hidden;
+            pointer-events: none;
+            transition: opacity 140ms ease, visibility 140ms ease;
+        }
+
+        .map-loading.is-visible {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        .map-loading-spinner {
+            width: 20px;
+            height: 20px;
+            border: 2px solid rgba(37, 99, 235, 0.18);
+            border-top-color: var(--primary);
+            border-radius: 50%;
+            animation: map-loading-spin 0.9s linear infinite;
+            flex: 0 0 auto;
+        }
+
+        .map-loading-copy {
+            font-size: 13px;
+            line-height: 1.5;
+            font-weight: 700;
+            color: var(--ink);
+        }
+
+        @keyframes map-loading-spin {
+            from {
+                transform: rotate(0deg);
+            }
+
+            to {
+                transform: rotate(360deg);
+            }
+        }
+
         .map-footer-copy {
             flex: 1;
             font-size: 12px;
@@ -348,7 +403,7 @@
             }
 
             .breadcrumbs {
-                top: 196px;
+                top: var(--spacing-lg);
                 width: calc(100vw - 48px);
             }
 
@@ -398,6 +453,10 @@
 
     <div class="breadcrumbs" id="breadcrumbs"></div>
     <div class="control-panel" id="control-panel"></div>
+    <div class="map-loading" id="map-loading" aria-live="polite" aria-hidden="true">
+        <span class="map-loading-spinner" aria-hidden="true"></span>
+        <span class="map-loading-copy" id="map-loading-copy">正在加载地图边界...</span>
+    </div>
 
     <div class="map-footer">
         <div class="map-footer-copy" id="map-footer-copy">当前切片：高德标准底图 + DistrictSearch 行政边界 + gaode 私有业务数据。支持全国、大区、战区与省市区下钻。</div>
